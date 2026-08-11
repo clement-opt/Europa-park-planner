@@ -1,28 +1,38 @@
 # Architecture
 
-État réel du code au 11/08/2026, établi par lecture intégrale des sources.
+État réel du code au 11/08/2026, tenu à jour au fil des sessions.
 `CLAUDE.md` donne les règles métier et les interdits ; ce document décrit la mécanique.
 
 ## Vue d'ensemble
 
-Application React 19 monopage, sans routeur. Une seule vue, trois onglets commutés par
+Application React 19 monopage, sans routeur. Une seule vue, deux onglets commutés par
 un `useState` local. Aucune librairie d'état : tout l'état vit dans `App.tsx` et se
 persiste dans `localStorage`.
 
 ```
-main.tsx
-└── App.tsx ........................ tout l'état, les trois onglets
-    ├── data/rides.ts ............... référentiel figé des 36 attractions
-    ├── lib/api.ts .................. lecture queue-times via chaîne de relais
-    ├── lib/geo.ts .................. haversine, marche, Overpass
+main.tsx                            retire l'écran de lancement d'index.html
+└── App.tsx ........................ état, synchro, deux onglets
+    ├── data/rides.ts ............... 36 attractions, quartiers, étiquettes déduites
+    ├── lib/api.ts .................. serveur → relais → relevé figé
+    ├── lib/sync.ts ................. Supabase : état partagé, attentes, allées
+    ├── lib/geo.ts .................. Overpass, bbox, clés de la matrice
+    ├── lib/walkgraph.ts ............ graphe, Dijkstra, plus courts chemins
+    ├── lib/walk.worker.ts .......... les mêmes calculs, hors fil principal
+    ├── lib/walkClient.ts ........... contrat worker, repli synchrone
+    ├── lib/position.ts ............. suivi GPS, jamais partagé
     ├── lib/planner.ts .............. optimiseur glouton
-    ├── lib/journal.ts .............. relevés, évènements, export Markdown
-    ├── lib/storage.ts .............. persistance, export sélection
-    └── components/ParkMap.tsx ...... Leaflet, trois fonds de carte
+    ├── lib/journal.ts .............. relevés locaux, export Markdown
+    ├── lib/storage.ts .............. persistance, lots, exports
+    └── components/
+        ├── Selection.tsx ........... réglages, lots, liste filtrable
+        ├── Parcours.tsx ............ carte + itinéraire + autour de vous
+        ├── ParkMap.tsx ............. Leaflet, tracé, mini-fiche
+        └── Section.tsx ............. bloc repliable
 ```
 
-`worker/queue-proxy.js` est déployé séparément sur Cloudflare : il ne fait pas partie
-du bundle.
+`worker/queue-proxy.js` est un **repli** déployable sur Cloudflare. Il n'est plus
+nécessaire : les temps d'attente viennent du serveur Supabase, qui n'a pas de contrainte
+CORS puisqu'il appelle queue-times depuis Postgres.
 
 ## Flux de données
 
@@ -30,27 +40,39 @@ Trois sources externes, trois politiques de repli distinctes. Aucune ne bloque l
 
 | Source | Chemin | Repli si échec |
 | --- | --- | --- |
-| queue-times.com (park 51) | `api.ts` → chaîne de relais CORS | `SNAPSHOT`, relevé figé du 11/08/2026 |
-| OpenStreetMap (Overpass) | `geo.ts` → 2 endpoints | coordonnées `lat`/`lng` de `rides.ts` |
+| Temps d'attente | `ep_waits()` sur Supabase | relais CORS publics, puis `SNAPSHOT` figé |
+| Réseau d'allées | `ep_foot_graph()` sur Supabase | cache local, puis Overpass, puis vol d'oiseau |
+| Positions d'attractions | Overpass, cache `ep.osm.v1` | coordonnées `lat`/`lng` de `rides.ts` |
+| État du groupe | RPC `ep_state_*` par code de séjour | `localStorage` seul |
+| Position du téléphone | `navigator.geolocation`, sur demande | départ depuis la dernière attraction cochée |
 | Tuiles Esri / OSM / CARTO | `ParkMap.tsx` | aucun, la carte reste vide |
+
+Les trois premières lignes passent par le même projet Supabase. Le serveur collecte
+queue-times toutes les 5 minutes et sert ce qu'il a : côté serveur, pas de CORS.
 
 ### Cycle de rafraîchissement
 
 `App.tsx` appelle `ping()` au montage puis toutes les **120 s**. Chaque appel :
 
-1. `fetchWaits(relay)` parcourt la chaîne de relais, premier succès gagne ;
+1. `fetchWaits(relay)` tente le serveur, puis les relais, premier succès gagne ;
 2. le `Snapshot` obtenu alimente `setSnap` ;
 3. **si et seulement si `source === "live"`**, `record(snap)` ajoute un relevé au journal.
 
 Ce filtre est délibéré : journaliser le `SNAPSHOT` figé polluerait l'historique avec des
 valeurs constantes qui ressembleraient à de la donnée réelle.
 
-### Chaîne de relais CORS
+### Ordre de lecture des temps d'attente
 
-`queue-times.com` ne renvoie pas d'en-tête `Access-Control-Allow-Origin`. `api.ts`
-essaie dans l'ordre : relais personnel s'il est renseigné, puis `corsproxy.io`,
-`allorigins.win`, `codetabs.com`, puis l'appel direct en dernier recours. Chaque
-tentative a un timeout de 8 s via `AbortController`.
+1. **Le serveur** — `ep_waits()` renvoie le dernier relevé collecté côté Postgres.
+   Un relevé de plus de 40 minutes est tenu pour mort et déclenche le repli : mieux vaut
+   tenter autre chose que servir des valeurs périmées en silence.
+2. **Les relais CORS** — relais personnel s'il est renseigné, puis `corsproxy.io`,
+   `allorigins.win`, `codetabs.com`, puis l'appel direct. Timeout de 8 s chacun.
+3. **`SNAPSHOT`** — le relevé figé du référentiel.
+
+`queue-times.com` ne renvoie pas d'en-tête `Access-Control-Allow-Origin`, d'où les relais.
+Le serveur, lui, appelle l'API depuis Postgres : aucune contrainte CORS ne s'y applique,
+c'est pourquoi il est passé en tête et que le Worker Cloudflare est devenu facultatif.
 
 Le relais personnel se colle dans le champ prévu et doit **se terminer par le préfixe
 de query** : `https://mon-worker.workers.dev/?url=`. `api.ts` concatène l'URL cible

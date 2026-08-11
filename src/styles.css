@@ -630,7 +630,7 @@ details[open] > summary.mini::after { content: "▴"; }
 .leafmap[data-layer="plan"] .leaflet-tile-pane { filter: saturate(.75) brightness(.98); }
 [data-theme="dark"] .leafmap[data-layer="plan"] .leaflet-tile-pane { filter: saturate(.7) brightness(.82); }
 .leaflet-container { background: var(--surface-2); }
-.leaflet-control-attribution { font-size: 11px; background: rgba(255,255,255,.72) !important; }
+.leaflet-control-attribution { font-size: 12.5px; background: rgba(255,255,255,.72) !important; }
 [data-theme="dark"] .leaflet-control-attribution { background: rgba(20,17,13,.72) !important; color: var(--ink-2); }
 [data-theme="dark"] .leaflet-control-attribution a { color: var(--ink-2); }
 
@@ -709,7 +709,8 @@ details[open] > summary.mini::after { content: "▴"; }
 
 /* ---- filtres par étiquette ---- */
 .filtres { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 14px; }
-.filtres .tag { cursor: pointer; min-height: 36px; padding: 6px 12px; transition: .15s; }
+/* 40 px minimum : ce sont des commandes, pas des décorations. */
+.filtres .tag { cursor: pointer; min-height: 40px; padding: 8px 13px; transition: .15s; }
 .filtres .tag[aria-pressed="true"] { color: #fff; }
 .filtres .tag.fort[aria-pressed="true"]  { background: var(--stop);   border-color: var(--stop); }
 .filtres .tag.moyen[aria-pressed="true"] { background: var(--mid);    border-color: var(--mid); }

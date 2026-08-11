@@ -9,6 +9,39 @@ git le fait déjà. On y écrit ce que git ne dit pas — pourquoi, et où on s'
 
 ---
 
+## Session 11 — 11/08/2026 · Ergonomie, documentation, audits versionnés
+
+**Ergonomie corrigée** — trois défauts mesurés, pas devinés :
+
+- **Contraste.** `--ink-3` était à 3,97 en sombre et 3,57 en clair, sous le seuil AA de 4,5.
+  Valeurs recalculées : `#978A77` et `#786956`, mesurées à 4,59 et 4,56.
+- **Le pire cas était l'état sélectionné.** En thème sombre `--rail` est un bleu clair, et
+  le blanc posé dessus tombait à **2,59** : « Jour 1 », « Équilibré », « Tôt » étaient les
+  libellés les moins lisibles de l'écran, alors que ce sont ceux qui disent ce qui est
+  actif. Un jeton `--on-rail` porte l'encre à poser sur un aplat rail — 6,11 en sombre.
+- **Trois champs sans nom accessible** : curseur de rythme, nom de lot, URL du relais.
+- Puces de filtre portées de 36 à 40 px, attribution Leaflet de 11 à 12,5 px.
+
+**Faux positif de ma propre méthode** : l'audit signalait les champs horaires comme
+« sans nom ». Il ne reconnaissait pas les `<label for>`, pourtant valides. C'est le
+contrôle qui était faux, pas le code.
+
+**Documentation remise à niveau.** `DOCUMENTATION.md` décrivait encore trois onglets, le
+Worker obligatoire, ni GPS ni étiquettes ni lots. `ARCHITECTURE.md` a été repris sur
+l'arborescence, les sources de données et l'ordre de lecture des temps d'attente.
+
+**Audits versionnés** — `scripts/audit-ergonomie.mjs` et `scripts/audit-parcours.mjs`,
+rejouables sur `npm run preview`. Les deux passent à zéro défaut.
+
+**Collecte** : 1 131 relevés sur 4 heures, **aucun échec**.
+
+**Reste ouvert** — tout est bloqué sur un élément extérieur :
+
+- [ ] `public/wagon-source.png` à déposer, puis `node scripts/cut-wagon.mjs --rails`.
+- [ ] Comparer `europa_park.curve` à `CURVE` : demande plusieurs jours de collecte.
+- [ ] Confirmer si sept VirtualLine sont réservables simultanément : demande une source.
+- [ ] Vérifier durées de tour et fiches d'attraction sur place.
+
 ## Session 10 — 11/08/2026 · Deux défauts d'ergonomie
 
 **Le gros bouton incompréhensible.** Chaque étape portait deux boutons **sans libellé**,
