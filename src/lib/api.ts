@@ -1,4 +1,5 @@
 import { RIDES, SNAPSHOT } from "../data/rides";
+import { fetchWaitsFromServer } from "./sync";
 
 export type RideState = { wait: number; open: boolean };
 export type Snapshot = {
@@ -24,7 +25,23 @@ const PUBLIC_RELAYS = [
 
 const isVirtualLine = (name: string) => /virtualline/i.test(name);
 
+/**
+ * Ordre de lecture : le serveur d'abord, les relais ensuite, le relevé figé en dernier.
+ *
+ * Le serveur collecte queue-times toutes les 5 minutes côté Postgres, donc sans
+ * contrainte CORS et sans relais. C'est la voie fiable ; les relais publics ne
+ * servent plus que de secours si Supabase est injoignable.
+ */
 export async function fetchWaits(customRelay?: string): Promise<Snapshot> {
+  try {
+    const srv = await fetchWaitsFromServer();
+    // Un relevé de plus de 40 minutes veut dire que la collecte est en panne :
+    // mieux vaut alors tenter l'appel direct que servir des valeurs mortes.
+    if (srv && Object.keys(srv.rides).length && Date.now() - srv.at < 40 * 60 * 1000) return srv;
+  } catch {
+    /* on passe aux relais */
+  }
+
   const chain = customRelay
     ? [(u: string) => customRelay + encodeURIComponent(u), ...PUBLIC_RELAYS]
     : PUBLIC_RELAYS;

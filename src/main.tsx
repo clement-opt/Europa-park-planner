@@ -11,16 +11,18 @@ createRoot(document.getElementById("root")!).render(
 
 /**
  * Retrait de l'écran de lancement défini dans index.html.
- * Un plancher de 900 ms : sur une connexion rapide le bundle arrive avant que
- * l'œil ait vu quoi que ce soit, et un écran qui clignote fait plus brouillon
- * qu'un écran qui se pose.
+ *
+ * On laisse le wagon finir sa course : l'animation dure 2,3 s et s'arrête au bout
+ * de la voie. Couper avant donnerait un train qui disparaît au milieu d'une côte.
+ * Le compte part du chargement de la page, pas de l'exécution de ce fichier, donc
+ * un bundle lent ne rallonge pas l'attente.
  */
 const boot = document.getElementById("boot");
 if (boot) {
-  const partir = () => {
+  const RIDE_MS = 2300;
+  const ecoule = performance.now();
+  setTimeout(() => {
     boot.classList.add("gone");
-    setTimeout(() => boot.remove(), 600);
-  };
-  const debut = Number(boot.dataset.t ?? 0) || performance.now();
-  setTimeout(partir, Math.max(0, 900 - (performance.now() - debut)));
+    setTimeout(() => boot.remove(), 650);
+  }, Math.max(200, RIDE_MS - ecoule));
 }

@@ -13,109 +13,165 @@
     <title>Plan de route · Europa-Park</title>
 
     <!--
-      Écran de lancement inline : il s'affiche avant que le bundle et les polices
-      ne soient chargés, donc pas de webfont ici, uniquement des polices système.
-      main.tsx le retire une fois React monté.
+      Écran de lancement inline : il s'affiche avant le bundle et avant les polices,
+      donc aucune webfont ici. Le wagon parcourt la voie d'un bord à l'autre : sa
+      course EST la barre de chargement. main.tsx le retire une fois React monté.
     -->
     <style>
       #boot {
-        position: fixed; inset: 0; z-index: 9999;
-        display: grid; place-items: center; gap: 0;
-        background: radial-gradient(120% 90% at 50% 34%, #2E7CB6 0%, #1F5C8B 52%, #122C42 100%);
+        position: fixed; inset: 0; z-index: 9999; overflow: hidden;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        background:
+          radial-gradient(90% 60% at 50% 18%, #2E7CB6 0%, #1B4F79 45%, #0E2438 100%);
         color: #F6F1E7; text-align: center;
-        transition: opacity .45s ease, visibility .45s;
-        padding: 24px;
+        transition: opacity .5s ease, visibility .5s;
       }
       #boot.gone { opacity: 0; visibility: hidden; }
-      #boot .in { display: flex; flex-direction: column; align-items: center; }
 
-      #boot .ring { position: relative; width: 168px; height: 168px; margin-bottom: 26px; }
-      #boot .ring > svg { position: absolute; inset: 0; width: 100%; height: 100%; }
-      #boot .ring .dash { animation: boot-spin 9s linear infinite; transform-origin: 50% 50%; }
-      /* L'emblème occupe la zone intérieure ; l'anneau est dessiné une seule fois. */
-      #boot .ring .mark { position: absolute; inset: 14%; width: 72%; height: 72%;
-        filter: drop-shadow(0 10px 22px rgba(0,0,0,.45)); }
+      /* Ciel : quelques étoiles qui respirent, sans jamais clignoter. */
+      #boot .sky { position: absolute; inset: 0; }
+      #boot .sky i {
+        position: absolute; width: 3px; height: 3px; border-radius: 50%;
+        background: #F6F1E7; opacity: .5; animation: twinkle 4s ease-in-out infinite;
+      }
 
+      #boot .head { position: relative; z-index: 2; padding: 0 24px; margin-bottom: 6vh; }
       #boot h1 {
         margin: 0; font-family: Georgia, "Times New Roman", serif;
-        font-size: 34px; font-weight: 700; letter-spacing: -.01em;
+        font-size: clamp(30px, 9vw, 46px); font-weight: 700; letter-spacing: -.015em;
+        text-shadow: 0 4px 18px rgba(0,0,0,.45);
       }
-      #boot p {
-        margin: 8px 0 0; font-family: system-ui, -apple-system, sans-serif;
-        font-size: 15px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase;
-        color: #C99A2E;
+      #boot .sub {
+        margin: 10px 0 0; font-family: system-ui, -apple-system, sans-serif;
+        font-size: clamp(12px, 3.4vw, 15px); font-weight: 700;
+        letter-spacing: .22em; text-transform: uppercase; color: #E3BA5A;
       }
+
+      /* La voie occupe toute la largeur : le wagon va d'un bord à l'autre. */
+      #boot .coaster { position: relative; z-index: 2; width: 100%; }
+      #boot .coaster svg { display: block; width: 100%; height: auto; }
+
       #boot .say {
-        margin-top: 30px; min-height: 24px;
-        font-family: system-ui, -apple-system, sans-serif; font-size: 16px; color: #CFE0EE;
-        animation: boot-fade 2.4s ease-in-out infinite;
+        position: relative; z-index: 2; margin-top: 4vh; min-height: 22px; padding: 0 24px;
+        font-family: system-ui, -apple-system, sans-serif;
+        font-size: clamp(14px, 3.8vw, 17px); color: #CFE0EE;
       }
 
-      /* Les wagons qui montent la côte, en bas de l'écran. */
-      #boot .hill { position: absolute; left: 0; right: 0; bottom: 0; height: 120px; opacity: .5; }
-      #boot .cart { animation: boot-climb 3.6s cubic-bezier(.5,0,.5,1) infinite; }
-
-      @keyframes boot-spin  { to { transform: rotate(360deg); } }
-      @keyframes boot-fade  { 0%, 100% { opacity: .45; } 50% { opacity: 1; } }
-      @keyframes boot-climb { 0% { transform: translateX(-12%); } 100% { transform: translateX(112%); } }
+      @keyframes twinkle { 0%, 100% { opacity: .22; } 50% { opacity: .85; } }
 
       @media (prefers-reduced-motion: reduce) {
-        #boot .dash, #boot .say, #boot .cart { animation: none; }
+        #boot .sky i { animation: none; }
+        #boot .cart-motion { display: none; }
       }
     </style>
   </head>
   <body>
-    <div id="boot" role="status" aria-live="polite">
-      <div class="in">
-        <div class="ring">
-          <svg viewBox="0 0 100 100" aria-hidden="true">
-            <circle cx="50" cy="50" r="47" fill="none" stroke="#F6F1E7" stroke-width="2.5" opacity=".85" />
-            <circle class="dash" cx="50" cy="50" r="41" fill="none" stroke="#C99A2E"
-                    stroke-width="1.6" stroke-dasharray="7 6" opacity=".9" />
-          </svg>
-          <svg class="mark" viewBox="0 0 512 512" aria-hidden="true">
-            <circle cx="256" cy="256" r="168" fill="#F6F1E7"/>
-            <path d="M118 316c40-96 82-142 138-142s98 46 138 142" fill="none"
-                  stroke="#1F5C8B" stroke-width="20" stroke-linecap="round"/>
-            <path d="M118 316h276" stroke="#241C14" stroke-width="14" stroke-linecap="round"/>
-            <path d="M150 316v-26M200 316v-26M256 316v-26M312 316v-26M362 316v-26"
-                  stroke="#241C14" stroke-width="9" stroke-linecap="round"/>
-            <path d="M256 148l16 33 36 5-26 25 6 36-32-17-32 17 6-36-26-25 36-5z" fill="#C99A2E"/>
-          </svg>
-        </div>
+    <div id="boot" role="status" aria-live="polite" aria-label="Chargement">
+      <div class="sky" aria-hidden="true"></div>
+
+      <div class="head">
         <h1>Plan de route</h1>
-        <p>Europa-Park</p>
-        <div class="say">On graisse les rails…</div>
+        <p class="sub">Europa-Park</p>
       </div>
 
-      <svg class="hill" viewBox="0 0 400 120" preserveAspectRatio="none" aria-hidden="true">
-        <path d="M0 108 Q100 24 200 60 T400 30" fill="none" stroke="#F6F1E7" stroke-width="3" stroke-linecap="round"/>
-        <g class="cart">
-          <rect x="0" y="46" width="26" height="15" rx="4" fill="#C99A2E"/>
-          <circle cx="7" cy="63" r="3.4" fill="#F6F1E7"/>
-          <circle cx="19" cy="63" r="3.4" fill="#F6F1E7"/>
-        </g>
-      </svg>
+      <div class="coaster">
+        <svg viewBox="0 0 1000 420" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+          <defs>
+            <!-- La voie, et en même temps la trajectoire du wagon. -->
+            <path id="rail"
+              d="M-60,330 C40,330 70,150 190,150 S330,320 430,300 S560,90 690,130 S850,300 1000,220 L1080,200" />
+            <clipPath id="hublot"><circle cx="0" cy="-40" r="34" /></clipPath>
+            <linearGradient id="fer" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#F6F1E7" stop-opacity=".95"/>
+              <stop offset="1" stop-color="#F6F1E7" stop-opacity=".45"/>
+            </linearGradient>
+          </defs>
+
+          <!-- Piliers -->
+          <g stroke="#F6F1E7" stroke-opacity=".28" stroke-width="4" stroke-linecap="round">
+            <path d="M120,238 V420 M260,178 V420 M400,300 V420 M560,150 V420 M700,130 V420 M860,268 V420"/>
+            <path d="M120,300 L260,240 M400,340 L560,250 M700,230 L860,300" stroke-opacity=".18"/>
+          </g>
+
+          <!-- Voie : un trait plein, des traverses par-dessus -->
+          <use href="#rail" fill="none" stroke="url(#fer)" stroke-width="7" stroke-linecap="round"/>
+          <use href="#rail" fill="none" stroke="#0E2438" stroke-opacity=".35" stroke-width="2"
+               stroke-dasharray="2 16" stroke-linecap="round"/>
+
+          <!-- Le wagon, et nous dedans -->
+          <g class="cart-motion">
+            <g transform="translate(0,-6)">
+              <!-- barre de sécurité -->
+              <path d="M-38,-58 q38,-26 76,0" fill="none" stroke="#E3BA5A" stroke-width="5" stroke-linecap="round"/>
+              <!-- caisse -->
+              <rect x="-46" y="-46" width="92" height="52" rx="16" fill="#C24634"/>
+              <rect x="-46" y="-46" width="92" height="52" rx="16" fill="none" stroke="#F6F1E7" stroke-width="3"/>
+              <!-- hublot : la photo du groupe si elle existe, sinon le fond crème -->
+              <circle cx="0" cy="-40" r="34" fill="#1B4F79"/>
+              <!-- Nous, en attendant la photo : quatre têtes dans le wagon. -->
+              <g id="passagers" clip-path="url(#hublot)">
+                <circle cx="-17" cy="-46" r="9" fill="#F6F1E7"/>
+                <circle cx="0"   cy="-52" r="9" fill="#E3BA5A"/>
+                <circle cx="17"  cy="-46" r="9" fill="#F6F1E7"/>
+                <path d="M-34,-20 q17,-16 34,0 q17,-16 34,0 v20 h-68 z" fill="#F6F1E7" opacity=".55"/>
+              </g>
+              <image id="photo" x="-34" y="-74" width="68" height="68" visibility="hidden"
+                     preserveAspectRatio="xMidYMid slice" clip-path="url(#hublot)"/>
+              <circle cx="0" cy="-40" r="34" fill="none" stroke="#F6F1E7" stroke-width="4"/>
+              <!-- roues -->
+              <circle cx="-26" cy="10" r="9" fill="#241C14" stroke="#F6F1E7" stroke-width="3"/>
+              <circle cx="26"  cy="10" r="9" fill="#241C14" stroke="#F6F1E7" stroke-width="3"/>
+            </g>
+            <animateMotion dur="2.3s" fill="freeze" rotate="auto" keyPoints="0;1"
+                           keyTimes="0;1" calcMode="spline" keySplines="0.45 0 0.35 1">
+              <mpath href="#rail"/>
+            </animateMotion>
+          </g>
+        </svg>
+      </div>
+
+      <div class="say">On graisse les rails…</div>
     </div>
 
     <div id="root"></div>
     <script>
-      // Quelques répliques, tirées au hasard, pour que l'attente ait l'air vivante.
       (function () {
+        // La photo n'est posée que si elle existe : sinon le navigateur affiche
+        // sa vignette d'image cassée en plein milieu du hublot.
+        var img = new Image();
+        img.onload = function () {
+          var slot = document.getElementById("photo");
+          var dessin = document.getElementById("passagers");
+          if (slot) { slot.setAttribute("href", "/equipe.jpg"); slot.setAttribute("visibility", "visible"); }
+          if (dessin) dessin.remove();
+        };
+        img.src = "/equipe.jpg";
+
+        // Ciel semé de façon stable : pas de scintillement synchrone.
+        var sky = document.querySelector("#boot .sky");
+        if (sky) {
+          var html = "";
+          for (var i = 0; i < 34; i++) {
+            html += '<i style="left:' + (Math.random() * 100).toFixed(2) + '%;top:' +
+                    (Math.random() * 72).toFixed(2) + '%;animation-delay:' +
+                    (Math.random() * 4).toFixed(2) + 's"></i>';
+          }
+          sky.innerHTML = html;
+        }
+
         var lignes = [
           "On graisse les rails…",
           "On compte les jokers Green Card…",
           "On mesure les allées du parc…",
           "On interroge les files d'attente…",
           "On ménage les estomacs…",
-          "On réserve les VirtualLine…",
-          "On cherche le chemin le plus court…"
+          "On réserve les VirtualLine…"
         ];
         var el = document.querySelector("#boot .say");
         var i = Math.floor(Math.random() * lignes.length);
         if (el) {
           el.textContent = lignes[i];
-          setInterval(function () { i = (i + 1) % lignes.length; el.textContent = lignes[i]; }, 2400);
+          setInterval(function () { i = (i + 1) % lignes.length; el.textContent = lignes[i]; }, 1900);
         }
       })();
     </script>

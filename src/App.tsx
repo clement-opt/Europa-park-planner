@@ -287,14 +287,18 @@ export default function App() {
         <section className={"pane" + (tab === "sel" ? " on" : "")}>
           {snap?.source === "snapshot" && (
             <div className="warn">
-              <b>Temps d'attente figés.</b> queue-times.com ne renvoie pas d'en-tête CORS et les relais publics
-              n'ont pas répondu. Déployez le Worker fourni dans <code>worker/queue-proxy.js</code> et collez son URL
-              ci-dessous, en la terminant par <code>/?url=</code>.
-              <div style={{ marginTop: 10 }}>
-                <label className="f" htmlFor="relay">Relais personnel</label>
+              <b>Temps d'attente figés.</b> Ni le serveur ni les relais publics n'ont répondu : les valeurs
+              affichées sont celles du relevé de secours. Vérifiez la connexion, puis appuyez sur
+              le bouton d'actualisation en haut à droite.
+              <details style={{ marginTop: 10 }}>
+                <summary className="f" style={{ cursor: "pointer" }}>Relais personnel (optionnel)</summary>
+                <p className="note" style={{ margin: "8px 0" }}>
+                  Utile seulement si le serveur reste injoignable. Déployez <code>worker/queue-proxy.js</code>
+                  sur Cloudflare et collez l'URL du Worker suivie de <code>/?url=</code>.
+                </p>
                 <input id="relay" type="text" placeholder="https://mon-worker.workers.dev/?url=" defaultValue={st.relay}
                   onBlur={(e) => { setSt((s) => ({ ...s, relay: e.target.value.trim() })); ping(true); }} />
-              </div>
+              </details>
             </div>
           )}
 

@@ -55,3 +55,18 @@ export async function fetchFootWays(): Promise<[number, number][][] | null> {
   if (error) throw new Error(error.message);
   return (data as [number, number][][]) ?? null;
 }
+
+/** Dernier relevé collecté côté serveur, au format attendu par l'app. */
+export async function fetchWaitsFromServer(): Promise<
+  { at: number; source: "live"; rides: Record<number, { wait: number; open: boolean }>; vl: Record<number, boolean> } | null
+> {
+  const { data, error } = await db.rpc("ep_waits");
+  if (error) throw new Error(error.message);
+  if (!data?.at) return null;
+  return {
+    at: new Date(data.at).getTime(),
+    source: "live",
+    rides: data.rides ?? {},
+    vl: data.vl ?? {}
+  };
+}
