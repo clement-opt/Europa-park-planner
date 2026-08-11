@@ -1,0 +1,254 @@
+# Architecture
+
+État réel du code au 11/08/2026, établi par lecture intégrale des sources.
+`CLAUDE.md` donne les règles métier et les interdits ; ce document décrit la mécanique.
+
+## Vue d'ensemble
+
+Application React 19 monopage, sans routeur. Une seule vue, trois onglets commutés par
+un `useState` local. Aucune librairie d'état : tout l'état vit dans `App.tsx` et se
+persiste dans `localStorage`.
+
+```
+main.tsx
+└── App.tsx ........................ tout l'état, les trois onglets
+    ├── data/rides.ts ............... référentiel figé des 36 attractions
+    ├── lib/api.ts .................. lecture queue-times via chaîne de relais
+    ├── lib/geo.ts .................. haversine, marche, Overpass
+    ├── lib/planner.ts .............. optimiseur glouton
+    ├── lib/journal.ts .............. relevés, évènements, export Markdown
+    ├── lib/storage.ts .............. persistance, export sélection
+    └── components/ParkMap.tsx ...... Leaflet, trois fonds de carte
+```
+
+`worker/queue-proxy.js` est déployé séparément sur Cloudflare : il ne fait pas partie
+du bundle.
+
+## Flux de données
+
+Trois sources externes, trois politiques de repli distinctes. Aucune ne bloque l'app.
+
+| Source | Chemin | Repli si échec |
+| --- | --- | --- |
+| queue-times.com (park 51) | `api.ts` → chaîne de relais CORS | `SNAPSHOT`, relevé figé du 11/08/2026 |
+| OpenStreetMap (Overpass) | `geo.ts` → 2 endpoints | coordonnées `lat`/`lng` de `rides.ts` |
+| Tuiles Esri / OSM / CARTO | `ParkMap.tsx` | aucun, la carte reste vide |
+
+### Cycle de rafraîchissement
+
+`App.tsx` appelle `ping()` au montage puis toutes les **120 s**. Chaque appel :
+
+1. `fetchWaits(relay)` parcourt la chaîne de relais, premier succès gagne ;
+2. le `Snapshot` obtenu alimente `setSnap` ;
+3. **si et seulement si `source === "live"`**, `record(snap)` ajoute un relevé au journal.
+
+Ce filtre est délibéré : journaliser le `SNAPSHOT` figé polluerait l'historique avec des
+valeurs constantes qui ressembleraient à de la donnée réelle.
+
+### Chaîne de relais CORS
+
+`queue-times.com` ne renvoie pas d'en-tête `Access-Control-Allow-Origin`. `api.ts`
+essaie dans l'ordre : relais personnel s'il est renseigné, puis `corsproxy.io`,
+`allorigins.win`, `codetabs.com`, puis l'appel direct en dernier recours. Chaque
+tentative a un timeout de 8 s via `AbortController`.
+
+Le relais personnel se colle dans le champ prévu et doit **se terminer par le préfixe
+de query** : `https://mon-worker.workers.dev/?url=`. `api.ts` concatène l'URL cible
+encodée directement derrière, sans rien ajouter. Sans ce suffixe le Worker répond 400 et
+la chaîne repart sur les relais publics.
+
+Conséquence à connaître : un relais personnel cassé ne se voit pas. La chaîne bascule
+silencieusement sur les publics, et l'indicateur reste « live » si l'un d'eux répond.
+
+## Modèle de données
+
+### `Ride` (`data/rides.ts`)
+
+36 entrées, vérifiées sans doublon d'`id` et couvertes à 100 % par `SNAPSHOT`.
+
+| Champ | Rôle |
+| --- | --- |
+| `id` | identifiant queue-times, clé de jointure avec l'API |
+| `z` | quartier, sert au regroupement et à `nearestZone` |
+| `lat` / `lng` | position de repli, juste au quartier près |
+| `dur` | tour + embarquement, estimation jamais chronométrée |
+| `thr` | intensité 0-5, pondère le score du planificateur |
+| `nau` | brassage 0-5, pilote le compteur anti-nausée |
+| `vl` | VirtualLine annoncée par le parc (7 attractions) |
+| `vlId` | identifiant de file virtuelle chez queue-times (3 seulement) |
+| `k` | clé de rapprochement avec le nom OpenStreetMap |
+
+L'écart `vl: true` (7) contre `vlId` (3) n'est pas une erreur : queue-times n'expose que
+trois files virtuelles nommées. Les quatre autres sont réservables dans l'app du parc
+mais **non observables** via l'API.
+
+### Rapprochement OpenStreetMap
+
+`fetchOsmPositions` interroge Overpass sur la bbox du parc, normalise les noms
+(minuscules, accents retirés, ponctuation en espaces) et cherche pour chaque attraction
+un élément dont le nom **contient** la clé `k`, avec un repli sur l'inclusion inverse
+pour les noms longs. Le résultat n'est retenu que si **au moins 8 attractions** ont été
+appariées, garde-fou contre une réponse partielle. Il est ensuite mis en cache dans
+`localStorage` sous `ep.osm.v1`, définitivement : aucune expiration, aucun rafraîchissement.
+
+Si une attraction n'est jamais trouvée, corriger `k`, jamais les coordonnées.
+
+## Le planificateur
+
+`buildPlan` est un glouton sous contraintes. À chaque itération il évalue toutes les
+attractions restantes et retient la meilleure, sans retour arrière.
+
+### Score
+
+```
+score = (1 + (thr / 5) * 0.35 + min(1.2, saved / 45)) / max(6, cost)
+cost  = marche + attente + durée du tour
+saved = attente réelle projetée − attente effective (joker ou VirtualLine)
+```
+
+Le dénominateur plancher à 6 empêche une attraction très courte de rafler la mise par
+seule division. `saved` valorise l'endroit où le joker rapporte, plafonné pour qu'une
+file de trois heures ne dérègle pas tout.
+
+### Contraintes dures, dans l'ordre d'évaluation
+
+1. **Heure de fin** — `t + cost > end` écarte l'attraction.
+2. **Brassage** — `cooled + nau * 13 > tol` écarte l'attraction.
+3. **Fermeture** — `projectedWait` renvoie `-1`, l'attraction est sautée.
+
+Quand plus rien ne passe et que le compteur de brassage est non nul, une pause
+« Respiration » de 10 à 20 min est insérée, puis la boucle reprend. Quand plus rien ne
+passe et que le compteur est à zéro, la boucle s'arrête.
+
+### Compteur de brassage
+
+C'est la raison d'être de l'app, pas un réglage cosmétique.
+
+```
+après un tour   : compteur += nau * 13
+marche et file  : compteur -= 0.55 par minute
+pause déjeuner  : compteur -= 0.9 par minute
+```
+
+Trois plafonds proposés : 45 (estomac fragile), 65 (équilibré), 88 (on encaisse).
+
+### Modes d'attente
+
+| Mode | Attente retenue | Origine |
+| --- | --- | --- |
+| `gc` | 7 min forfaitaires | joker Green Card |
+| `vl` | 10 min résiduelles | VirtualLine réservée, fenêtre de retour respectée |
+| `file` | `projectedWait` | file classique |
+
+Les VirtualLine génèrent une étape préalable de 3 min en début de journée (« Réserver
+les VirtualLine dans l'app Europa-Park »), et chaque réservation ouvre une fenêtre de
+retour à `max(30, attente projetée)` minutes. Le planificateur ne peut pas arriver avant.
+
+### Projection d'affluence
+
+`CURVE` est une courbe horaire de 9 h à 18 h, interpolée linéairement par `curveAt`.
+`projectedWait` applique le **rapport** entre la courbe à l'heure d'arrivée et la courbe
+à l'heure du relevé, borné entre 0,35 et 2.
+
+```
+w(arrivée) = w(relevé) × clamp(curve(arrivée) / curve(relevé), 0.35, 2)
+```
+
+C'est une heuristique assumée. L'API ne donne que l'instant présent ; sans historique il
+n'y a pas mieux. Voir « Collecte continue » plus bas.
+
+## Persistance
+
+Trois clés `localStorage`, indépendantes, toutes tolérantes à l'échec (quota, mode privé).
+
+| Clé | Contenu | Écrit par |
+| --- | --- | --- |
+| `ep.state.v3` | jours 1 et 2, rythme, thème, relais | `storage.ts`, à chaque changement d'état |
+| `ep.journal.v1` | relevés et évènements | `journal.ts`, à chaque relevé live |
+| `ep.osm.v1` | positions OSM appariées | `App.tsx`, une fois |
+
+`load()` fusionne l'état lu avec `initialState()` et `emptyDay()`, donc l'ajout d'un champ
+dans `DayPlan` ne casse pas un état déjà persisté. Le suffixe `v3` reste à incrémenter
+manuellement en cas de changement incompatible.
+
+## Journalisation
+
+`journal.ts` conserve jusqu'à **900 relevés** (≈ 30 h à un relevé toutes les 2 min) et
+400 évènements, en fenêtre glissante. À chaque relevé il compare au précédent et déduit
+quatre types d'évènements : `vl-open`, `vl-close`, `ride-close`, `ride-open`, plus `spike`
+au-delà de +25 min d'un relevé à l'autre.
+
+`toMarkdown()` produit trois sections : évènements, synthèse min/moyenne/max par
+attraction, et relevés bruts (200 derniers).
+
+### Limite structurelle
+
+**Le journal n'alimente pas `CURVE`.** Les deux mécanismes coexistent sans se parler :
+`CURVE` reste une constante écrite à la main, et le journal ne sert qu'à l'export manuel.
+De plus la collecte ne tourne que pendant que l'app est ouverte, dans un seul navigateur,
+et les données disparaissent avec le `localStorage`.
+
+C'est le principal écart entre ce que l'app fait et ce qu'elle prétend estimer.
+
+## Collecte continue (non implémentée)
+
+Dispositif visé pour remplacer `CURVE` par du réel, décrit ici pour ne pas le
+redécouvrir à chaque session.
+
+```
+Schedule Trigger (5 min)
+  └── HTTP Request → https://queue-times.com/parks/51/queue_times.json
+        └── insertion en base : (ride_id, ts, wait, is_open)
+```
+
+Le Worker Cloudflare fait déjà la moitié du travail : il est côté serveur, donc **pas de
+contrainte CORS** et pas besoin de relais. Deux voies possibles :
+
+- **n8n** — Schedule Trigger + HTTP Request + insertion. Aucune contrainte CORS côté
+  serveur, l'appel se fait en direct sur queue-times.
+- **Cloudflare** — un Cron Trigger sur le Worker existant plus un stockage D1 ou KV.
+  Évite d'ajouter une infrastructure, mais impose d'étendre `queue-proxy.js`.
+
+Volume attendu : 36 attractions × 12 relevés/heure × 12 h ≈ **5 200 lignes par jour**.
+Négligeable pour n'importe quel stockage.
+
+Exploitation : moyenner l'attente par attraction et par tranche horaire sur plusieurs
+jours, normaliser par la moyenne journalière, et remplacer `CURVE` par une courbe par
+attraction plutôt qu'une courbe globale. Silver Star et Voletarium n'ont pas le même
+profil horaire — c'est précisément ce que la courbe unique ne peut pas capturer.
+
+Ce chantier n'a aucune dépendance sur le reste de l'app. `projectedWait` est le seul
+point d'entrée à modifier.
+
+## Points d'attention repérés au review
+
+Aucun n'est bloquant pour le séjour. Classés par ordre d'importance.
+
+1. **Les préréglages dépendent du premier relevé.** `preset("mix")` choisit les six
+   jokers en triant sur `waits`, qui vaut `-1` partout tant que `snap` est `null`. Cliquer
+   un préréglage dans la seconde qui suit l'ouverture donne une liste sans aucun joker.
+   En pratique le premier `ping()` répond avant, mais le cas existe.
+
+2. **Un relais personnel invalide est indiscernable.** La chaîne bascule sur les relais
+   publics sans le signaler. Si l'indicateur affiche « live », rien ne dit lequel a répondu.
+
+3. **Le cache OSM n'expire jamais.** Un appariement partiel (8 attractions suffisent pour
+   être retenu) est figé définitivement dans `ep.osm.v1`. Vider cette clé est le seul
+   moyen de relancer la recherche.
+
+4. **`hhmm` peut décaler d'une heure sur une entrée fractionnaire.** `Math.floor(m / 60)`
+   utilise la valeur brute alors que les minutes sont arrondies : `599.6` rend `09:00` au
+   lieu de `10:00`. Latent uniquement — toutes les valeurs qui atteignent `hhmm`
+   aujourd'hui sont entières.
+
+5. **`App.tsx` fait 443 lignes.** Le seuil posé dans `CLAUDE.md` est atteint : découper
+   par onglet avant d'ajouter une fonctionnalité.
+
+## Contraintes de build
+
+- **Rolldown.** Vite 8 impose que `manualChunks` soit une **fonction**. La forme objet
+  héritée de Rollup lève `manualChunks is not a function` au build.
+- **Découpage** en quatre chunks : `react`, `leaflet`, `motion`, `index`.
+- **PWA** via `vite-plugin-pwa` en `generateSW`, précache de 16 entrées, `CacheFirst` sur
+  les tuiles Esri et OSM avec 900 entrées et 30 jours de rétention.
+- `tsc -b` produit `tsconfig.tsbuildinfo` à la racine, non couvert par `.gitignore`.

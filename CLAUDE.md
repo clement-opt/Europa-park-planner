@@ -12,6 +12,16 @@ sera, où on dépense les jokers Green Card.
 Ce n'est pas un produit. C'est un outil personnel pour un séjour daté. Optimiser pour
 la clarté du code et la fiabilité sur le terrain, pas pour la généricité.
 
+## Documents du projet
+
+Ce fichier porte les règles et les interdits. Le détail vit à côté :
+
+- `SESSIONS.md` — **à lire en premier** pour reprendre le travail. Où en est le projet,
+  session par session, et ce qui reste ouvert. À compléter avant de clore une session.
+- `ARCHITECTURE.md` — mécanique interne : flux de données, planificateur, persistance,
+  points d'attention relevés au review.
+- `DOCUMENTATION.md` — usage terrain, avant et pendant le séjour.
+
 ## Commandes
 
 ```bash
