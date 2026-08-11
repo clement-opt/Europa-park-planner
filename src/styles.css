@@ -686,3 +686,70 @@ details[open] > summary.mini::after { content: "▴"; }
   background: color-mix(in oklab, var(--surface) 86%, transparent); }
 .tracehint.approx { color: var(--mid); border-color: color-mix(in oklab, var(--mid) 55%, transparent);
   background: color-mix(in oklab, var(--surface) 86%, transparent); }
+
+/* ---- actions d'une étape ---- */
+.stopacts { display: flex; flex-direction: column; gap: 8px; flex: none; }
+.act {
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  min-height: 46px; padding: 0 14px; border-radius: 12px;
+  border: 2px solid var(--line-2); background: var(--surface-2);
+  font-size: 14px; font-weight: 800; white-space: nowrap;
+}
+.act svg { width: 19px; height: 19px; stroke: currentColor; fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.act.fait { background: var(--clover); border-color: var(--clover); color: #fff; }
+.act.retirer { color: var(--ink-3); }
+.act.retirer:hover { border-color: var(--stop); color: var(--stop); }
+@media (max-width: 560px) {
+  .stopacts { flex-direction: row; width: 100%; }
+  .act { flex: 1; }
+  .act.retirer { flex: 0 0 108px; }
+}
+
+/* ---- filtres par étiquette ---- */
+.filtres { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 14px; }
+.filtres .tag { cursor: pointer; min-height: 36px; padding: 6px 12px; transition: .15s; }
+.filtres .tag[aria-pressed="true"] { color: #fff; }
+.filtres .tag.fort[aria-pressed="true"]  { background: var(--stop);   border-color: var(--stop); }
+.filtres .tag.moyen[aria-pressed="true"] { background: var(--mid);    border-color: var(--mid); }
+.filtres .tag.doux[aria-pressed="true"]  { background: var(--go);     border-color: var(--go); }
+.filtres .tag.eau[aria-pressed="true"]   { background: var(--rail);   border-color: var(--rail); }
+.filtres .tag.vl[aria-pressed="true"]    { background: var(--vline);  border-color: var(--vline); }
+.filtres .tag.kid[aria-pressed="true"]   { background: var(--gold);   border-color: var(--gold); color: #241C14; }
+.filtres .tag.vide { color: var(--ink-2); border-color: var(--line-2); border-style: dashed; }
+.filtres .tag:active { transform: scale(.94); }
+
+/* ---- effets ---- */
+/* Le compteur d'étiquettes affichées se met à jour : on souligne le changement. */
+.card h3 em { transition: color .25s; }
+
+/* Rebond à l'entrée des cartes d'étape, décalé pour donner un sens de lecture. */
+.stop { animation: stop-in .38s cubic-bezier(.2,.9,.3,1) both; }
+.stop:nth-child(1) { animation-delay: 0ms; }
+.stop:nth-child(2) { animation-delay: 40ms; }
+.stop:nth-child(3) { animation-delay: 80ms; }
+.stop:nth-child(4) { animation-delay: 120ms; }
+.stop:nth-child(n+5) { animation-delay: 160ms; }
+@keyframes stop-in { from { opacity: 0; transform: translateY(14px) scale(.985); } }
+
+/* Le numéro d'étape pulse doucement sur l'étape en cours. */
+.stop.now .hh b { color: var(--rail); animation: now-beat 2.4s ease-in-out infinite; }
+@keyframes now-beat { 0%, 100% { opacity: .7; } 50% { opacity: 1; } }
+
+/* Survol d'un quartier : la couleur remonte dans la bordure. */
+.sect.zone:hover { border-color: color-mix(in oklab, hsl(var(--zh) 60% 50%) 55%, var(--line)); }
+
+/* Le bandeau d'état glisse à l'apparition. */
+.strip .cell { animation: cell-in .4s cubic-bezier(.2,.8,.2,1) both; }
+.strip .cell:nth-child(2) { animation-delay: 40ms; }
+.strip .cell:nth-child(3) { animation-delay: 80ms; }
+.strip .cell:nth-child(n+4) { animation-delay: 120ms; }
+@keyframes cell-in { from { opacity: 0; transform: translateX(-10px); } }
+
+/* Pression sur une étiquette de filtre : léger rebond de la liste. */
+.zone .ride { animation: ride-in .3s ease both; }
+@keyframes ride-in { from { opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .stop, .strip .cell, .zone .ride { animation: none; }
+  .stop.now .hh b { animation: none; }
+}

@@ -256,11 +256,20 @@ export default function Parcours({ day, now, positions, waits, onTick, onSelect,
                     {s.saved > 4 && <span className="mono" style={{ color: "var(--go)" }}>−{s.saved} min</span>}
                   </div>
                 </div>
+                {/*
+                  Deux boutons faisaient disparaître l'étape sans dire lequel faisait
+                  quoi : « fait » la marque comme accomplie et la compte, « retirer »
+                  l'abandonne. Sans libellé, le geste était un pari.
+                */}
                 <div className="stopacts">
-                  <button className="tick" aria-pressed={false} onClick={(e) => onTick(s.ride.id, e)}
-                    aria-label={`Marquer ${s.ride.n} comme faite`}><Check /></button>
-                  <button className="drop" onClick={() => onRemove(s.ride.id)}
-                    aria-label={`Retirer ${s.ride.n} du parcours`} title="Retirer du parcours">✕</button>
+                  <button className="act fait" onClick={(e) => onTick(s.ride.id, e)}
+                    aria-label={`Marquer ${s.ride.n} comme faite`}>
+                    <Check /><span>Fait</span>
+                  </button>
+                  <button className="act retirer" onClick={() => onRemove(s.ride.id)}
+                    aria-label={`Retirer ${s.ride.n} du parcours`}>
+                    <span aria-hidden="true">✕</span><span>Retirer</span>
+                  </button>
                 </div>
               </div></div>
             </motion.div>

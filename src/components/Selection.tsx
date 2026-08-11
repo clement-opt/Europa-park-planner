@@ -26,6 +26,7 @@ export default function Selection({ day, setDay, waits, pace, setPace, toast, sp
   // Les quartiers restent fermés tant qu'on ne les ouvre pas : un préréglage qui
   // sélectionne vingt attractions ne doit pas déplier dix panneaux d'un coup.
   const [openZones, setOpenZones] = useState<Set<string>>(new Set());
+  const [filtres, setFiltres] = useState<Set<string>>(new Set());
 
   const sel = useMemo(() => new Set(day.sel), [day.sel]);
   const gc = useMemo(() => new Set(day.gc), [day.gc]);
@@ -36,18 +37,28 @@ export default function Selection({ day, setDay, waits, pace, setPace, toast, sp
 
   const norm = (v: string) => v.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 
+  /** Toutes les étiquettes existantes, dans l'ordre où elles sont produites. */
+  const toutesTags = useMemo(() => {
+    const vus = new Map<string, string>();
+    RIDES.forEach((r) => tagsOf(r).forEach((t) => vus.set(t.l, t.ton)));
+    return [...vus].map(([l, ton]) => ({ l, ton }));
+  }, []);
+
   const byZone = useMemo(() => {
     const needle = norm(q.trim());
     const z: Record<string, Ride[]> = {};
     RIDES
       .filter((r) => !needle || norm(r.n).includes(needle) || norm(r.z).includes(needle)
         || norm(r.why).includes(needle) || tagsOf(r).some((t) => norm(t.l).includes(needle)))
+      // Filtres cumulatifs : « Familial » et « Aquatique » ne gardent que ce qui est
+      // les deux. C'est ce qu'on attend quand on empile des critères.
+      .filter((r) => !filtres.size || [...filtres].every((f) => tagsOf(r).some((t) => t.l === f)))
       .forEach((r) => (z[r.z] = z[r.z] ?? []).push(r));
     return Object.entries(z).sort(([a], [b]) => a.localeCompare(b));
-  }, [q]);
+  }, [q, filtres]);
 
   const shown = byZone.reduce((a, [, l]) => a + l.length, 0);
-  const searching = q.trim().length > 0;
+  const searching = q.trim().length > 0 || filtres.size > 0;
 
   const toggle = (list: number[], id: number) =>
     list.includes(id) ? list.filter((x) => x !== id) : [...list, id];
@@ -232,13 +243,27 @@ export default function Selection({ day, setDay, waits, pace, setPace, toast, sp
       </Section>
 
       <div className="card">
-        <h3>Attractions <em>{day.sel.length} / {RIDES.length}</em></h3>
+        <h3>Attractions <em>{shown} affichées · {day.sel.length} choisies</em></h3>
         <div className="pad">
           <div className="search">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
             <input type="text" value={q} onChange={(e) => setQ(e.target.value)}
               placeholder={`Chercher parmi ${RIDES.length} attractions…`} aria-label="Chercher une attraction" />
           </div>
+          <div className="filtres" role="group" aria-label="Filtrer par étiquette">
+            {toutesTags.map((t) => (
+              <button key={t.l} className={"tag " + t.ton} aria-pressed={filtres.has(t.l)}
+                onClick={() => setFiltres((p) => {
+                  const n = new Set(p);
+                  n.has(t.l) ? n.delete(t.l) : n.add(t.l);
+                  return n;
+                })}>{t.l}</button>
+            ))}
+            {filtres.size > 0 && (
+              <button className="tag vide" onClick={() => setFiltres(new Set())}>Tout afficher</button>
+            )}
+          </div>
+
           <div className="presets">
             <button className="ghost" onClick={() => preset("mix")}>Mix</button>
             <button className="ghost" onClick={() => preset("thrill")}>Sensations</button>

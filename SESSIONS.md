@@ -9,6 +9,28 @@ git le fait déjà. On y écrit ce que git ne dit pas — pourquoi, et où on s'
 
 ---
 
+## Session 10 — 11/08/2026 · Deux défauts d'ergonomie
+
+**Le gros bouton incompréhensible.** Chaque étape portait deux boutons **sans libellé**,
+et tous deux faisaient disparaître l'étape : la coche verte la marque comme accomplie et
+la compte dans le bilan, la croix l'abandonne. Le geste était un pari. Ils portent
+maintenant « Fait » et « Retirer », avec des couleurs distinctes.
+
+**Les étiquettes invisibles.** Elles étaient bien rendues — vérifié au navigateur — mais
+**enfermées dans les quartiers repliés**. Sans ouvrir un pays, on ne voyait rien. Le
+repliage réglait le problème de scroll et en créait un autre.
+
+Réponse : des **filtres par étiquette** au-dessus de la liste. Ils sont cumulatifs
+(« Familial » + « Aquatique » ne garde que ce qui est les deux) et **ouvrent
+automatiquement les quartiers concernés**. Le titre indique désormais « N affichées ·
+N choisies » au lieu du seul total.
+
+Mesuré : 8 filtres, Aquatique → 6 attractions sur 5 quartiers, + Familial → 3.
+
+**Effets ajoutés** : entrée décalée des étapes, pulsation de l'heure sur l'étape en cours,
+glissement du bandeau d'état, bordure de quartier qui prend sa couleur au survol,
+rebond à la pression des filtres. Tous neutralisés sous `prefers-reduced-motion`.
+
 ## Session 9 — 11/08/2026 · Le tracé ne suivait pas les allées
 
 **Bug trouvé**
