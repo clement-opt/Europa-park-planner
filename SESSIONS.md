@@ -9,6 +9,42 @@ git le fait déjà. On y écrit ce que git ne dit pas — pourquoi, et où on s'
 
 ---
 
+## Session 12 — 11/08/2026 · Trois bugs de fin de journée
+
+Signalés à 18 h 30 sur le terrain. Les deux derniers avaient la **même cause**.
+
+**1. « Parc fermé » à 18 h 30 alors qu'il était ouvert.** L'en-tête affichait l'ouverture
+d'après une plage `9 h – 18 h` **écrite en dur**. En août le parc ferme bien plus tard :
+l'heure inventée contredisait la réalité. L'état se lit désormais dans les données —
+le parc est ouvert si au moins une attraction l'est — et affiche `—` tant que les
+relevés ne sont pas réels, plutôt que d'affirmer quoi que ce soit.
+
+**2 et 3. Le parcours sortait vide après 18 h.** `buildPlan` pose
+`t = max(début, heure courante)` puis boucle tant que `t < fin`. Avec une fin de journée
+à 18 h 00 et une heure courante à 18 h 30, **la boucle ne tournait jamais** : tout
+« recalculer à partir de maintenant », tout retrait et tout ajout renvoyaient un plan
+vide, sans le moindre message. C'est ce qui donnait « ça met pas bien » et « ça met pas à
+jour selon les horaires ».
+
+Trois correctifs :
+
+- un bandeau explicite quand l'heure dépasse la fin choisie, avec **+ 1 h, + 2 h, + 3 h**
+  pour prolonger d'un geste, sans ouvrir les réglages ;
+- le bouton de recalcul est désactivé tant que la journée est finie, au lieu de produire
+  un vide silencieux ;
+- un plan vide le dit : « Aucune attraction ne rentre dans le temps restant ».
+
+**4. Le recalcul ne remontait pas en haut.** On restait au milieu de l'ancienne liste, sur
+des étapes qui n'étaient plus les mêmes. Il défile désormais en tête, fenêtre et panneau.
+
+**Vérifié** en simulant 18 h 30 dans le navigateur : bandeau présent, bouton désactivé,
+prolongation de 2 h → bandeau disparu, recalcul rendant **7 étapes** au lieu de 0,
+défilement revenu à 0.
+
+**Note pour plus tard** : les horaires réels du parc ne sont pas dans l'API. La fin de
+journée reste donc un réglage, pas une donnée. La collecte permettra à terme de déduire
+l'heure de fermeture des relevés, en observant quand toutes les attractions ferment.
+
 ## Session 11 — 11/08/2026 · Ergonomie, documentation, audits versionnés
 
 **Ergonomie corrigée** — trois défauts mesurés, pas devinés :

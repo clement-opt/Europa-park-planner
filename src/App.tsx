@@ -3,7 +3,7 @@ import { BY_ID, ENTRANCE, RIDES, type Ride } from "./data/rides";
 import { fetchWaits, type Snapshot } from "./lib/api";
 import { fetchFootWays, fetchOsmPositions, type LatLng } from "./lib/geo";
 import { useWalk } from "./lib/walkClient";
-import { buildPlan, clockMin, hhmm, type DayPlan } from "./lib/planner";
+import { buildPlan, clockMin, hhmm, toMin, type DayPlan } from "./lib/planner";
 import { downloadMarkdown, loadJournal, record, clearJournal } from "./lib/journal";
 import { copySelection, exportSelectionFile, load, merge, save, shareable, type AppState } from "./lib/storage";
 import { deviceName, fetchFootWays as footWaysFromServer, pullState, pushState, stampState, type SyncState } from "./lib/sync";
@@ -186,14 +186,22 @@ export default function App() {
   const compute = useCallback((fromNow: boolean) => {
     if (!snap) return setToast("Temps d'attente pas encore chargés");
     if (!day.sel.length) return setToast("Sélectionnez d'abord vos attractions");
+    if (fromNow && clockMin() >= toMin(day.end)) {
+      return setToast(`Il est ${hhmm(clockMin())} et votre journée se terminait à ${day.end}. Prolongez-la d'abord.`);
+    }
     setPlanning(true);
     setTab("go");
     window.setTimeout(() => {
       const steps = buildPlan({ day, snap, pace: st.pace, positions, walk, fromNow, rides: RIDES, me: geo.usable ? geo.fix!.p : null });
       setDay({ steps });
       setPlanning(false);
+      // Le recalcul renvoie en haut : sinon on reste au milieu de l'ancienne liste,
+      // sur des étapes qui ne sont plus les mêmes.
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      document.querySelectorAll(".pane").forEach((n) => n.scrollTo({ top: 0, behavior: "smooth" }));
       const n = steps.filter((x) => x.kind === "ride").length;
-      setToast(`Parcours calculé · ${n} attraction${n > 1 ? "s" : ""}`);
+      setToast(n ? `Parcours calculé · ${n} attraction${n > 1 ? "s" : ""}`
+                 : "Aucune attraction ne rentre dans le temps restant");
     }, 420);
   }, [snap, day, st.pace, positions, walk, setDay, geo.usable, geo.fix]);
 
@@ -203,6 +211,13 @@ export default function App() {
     if (!snap || !day.steps.length) return setDay(patch);
     setDay({ ...patch, steps: buildPlan({ day: next, snap, pace: st.pace, positions, walk, fromNow: true, rides: RIDES, me: geo.usable ? geo.fix!.p : null }) });
   }, [day, snap, st.pace, positions, walk, setDay, geo.usable, geo.fix]);
+
+  /** Repousse l'heure de fin, sans avoir à ouvrir les réglages. */
+  const prolonger = useCallback((h: number) => {
+    const fin = Math.min(23 * 60 + 59, toMin(day.end) + h * 60);
+    setDay({ end: hhmm(fin) });
+    setToast(`Journée prolongée jusqu'à ${hhmm(fin)}`);
+  }, [day.end, setDay]);
 
   const onRemove = useCallback((id: number) => {
     replan({
@@ -266,6 +281,18 @@ export default function App() {
       : { sel: [...day.sel, id] });
   }, [day, setDay]);
 
+  /**
+   * L'ouverture du parc se lit dans les données, pas dans une plage horaire écrite
+   * en dur. L'ancienne version affichait « parc fermé » dès 18 h 00 alors qu'en août
+   * le parc ferme bien plus tard : une heure inventée contredisait la réalité.
+   */
+  const parcOuvert = snap && snap.source === "live"
+    ? Object.values(snap.rides).some((r) => r.open)
+    : null;
+
+  /** Il est plus tard que l'heure de fin choisie : tout recalcul sortirait vide. */
+  const journeeFinie = now >= toMin(day.end);
+
   const openWaits = RIDES.map((r) => waits[r.id]).filter((w) => w > 0);
   const avg = openWaits.length ? Math.round(openWaits.reduce((a, b) => a + b, 0) / openWaits.length) : null;
   const liveAge = snap ? Math.round((Date.now() - snap.at) / 60000) : 0;
@@ -280,7 +307,7 @@ export default function App() {
         <div className="brand"><b>Plan de route</b><span>Europa-Park · 4 adultes</span></div>
         <div className="clock">
           <b className="mono">{hhmm(now)}</b>
-          <span>{now >= 540 && now < 1080 ? "parc ouvert" : "parc fermé"}</span>
+          <span>{parcOuvert === null ? "—" : parcOuvert ? "parc ouvert" : "parc fermé"}</span>
         </div>
         <button className={"icobtn" + (busy ? " spin" : "")} onClick={() => ping(true)} aria-label="Actualiser">
           <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.6-6.4" /><path d="M21 3v6h-6" /></svg>
@@ -393,7 +420,8 @@ export default function App() {
             onSelect={onSelect} compute={compute} graphOk={walk.ok} osmCount={Object.keys(osm).length}
             active={tab === "go"} planning={planning} onRemove={onRemove} onAdd={onAdd}
             me={geo.usable && geo.fix ? geo.fix.p : null} geoState={geo.state}
-            onGeo={geo.toggle} walk={walk} pace={st.pace} legs={legs} />
+            onGeo={geo.toggle} walk={walk} pace={st.pace} legs={legs}
+            journeeFinie={journeeFinie} onProlonger={prolonger} />
         </section>
       </div>
 

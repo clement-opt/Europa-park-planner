@@ -29,9 +29,11 @@ type Props = {
   walk: WalkMatrix;
   pace: number;
   legs: LatLng[][];
+  journeeFinie: boolean;
+  onProlonger: (heures: number) => void;
 };
 
-export default function Parcours({ day, now, positions, waits, onTick, onSelect, compute, graphOk, osmCount, active, planning, onRemove, onAdd, me, geoState, onGeo, walk, pace, legs }: Props) {
+export default function Parcours({ day, now, positions, waits, onTick, onSelect, compute, graphOk, osmCount, active, planning, onRemove, onAdd, me, geoState, onGeo, walk, pace, legs, journeeFinie, onProlonger }: Props) {
   const [adding, setAdding] = useState(false);
   const [fiche, setFiche] = useState<number | null>(null);
   const done = new Set(day.done);
@@ -171,7 +173,19 @@ export default function Parcours({ day, now, positions, waits, onTick, onSelect,
         </div>
       </div>
 
-      <button className="cta" onClick={() => compute(true)} disabled={planning}>
+      {journeeFinie && (
+        <div className="warn">
+          <b>Votre journée se termine à {day.end}</b>, et il est plus tard. Tout recalcul
+          « à partir de maintenant » sortirait vide. Prolongez-la pour continuer.
+          <div className="row" style={{ marginTop: 10, marginBottom: 0 }}>
+            <button className="ghost" onClick={() => onProlonger(1)}>+ 1 heure</button>
+            <button className="ghost" onClick={() => onProlonger(2)}>+ 2 heures</button>
+            <button className="ghost" onClick={() => onProlonger(3)}>+ 3 heures</button>
+          </div>
+        </div>
+      )}
+
+      <button className="cta" onClick={() => compute(true)} disabled={planning || journeeFinie}>
         {planning ? "Optimisation en cours…" : "Recalculer à partir de maintenant"}
       </button>
 
