@@ -233,8 +233,14 @@ export default function App() {
     setDay({ steps: buildPlan({ day, snap, pace: st.pace, positions, walk, fromNow: true, rides: RIDES, me: geo.usable ? geo.fix!.p : null }) });
   }, [doneKey, snap, day, st.pace, positions, walk, setDay, geo.usable, geo.fix]);
 
-  // Le tracé dessiné suit les mêmes allées que les temps de marche : on le
-  // redemande à chaque changement d'itinéraire ou de position de départ.
+  /**
+   * Le tracé dessiné suit les mêmes allées que les temps de marche.
+   *
+   * `walk.ok` fait partie des dépendances : le réseau d'allées arrive par le réseau,
+   * souvent après le premier calcul d'itinéraire. Sans cette dépendance, le tracé
+   * était demandé à un worker qui n'avait pas encore de graphe, retombait en lignes
+   * droites, et n'était plus jamais redemandé de la session.
+   */
   const stepKey = day.steps.map((x) => (x.kind === "ride" ? x.ride.id : "")).join(",") + "|" + day.done.join(",");
   useEffect(() => {
     const restants = day.steps.filter((x): x is Extract<typeof x, { kind: "ride" }> =>
@@ -243,7 +249,7 @@ export default function App() {
     const depart = geo.usable && geo.fix ? geo.fix.p : ENTRANCE;
     route([depart, ...restants.map((x) => x.pos)]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stepKey, route, geo.usable, geo.fix]);
+  }, [stepKey, route, geo.usable, geo.fix, walk.ok]);
 
   const onTick = useCallback((id: number, e?: React.MouseEvent) => {
     const has = day.done.includes(id);

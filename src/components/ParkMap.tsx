@@ -45,6 +45,8 @@ export default function ParkMap(props: {
   active: boolean;
   me: LatLng | null;
   legs: LatLng[][];
+  /** Le graphe des allées est chargé : le tracé dit vrai. */
+  real: boolean;
 }) {
   const box = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
@@ -101,7 +103,11 @@ export default function ParkMap(props: {
 
     // Le tracé suit les allées quand le graphe a répondu ; sinon on relie les
     // étapes en droite, en le montrant par un pointillé plus lâche.
-    const suitLesAllees = props.legs.length > 0;
+    //
+    // La distinction repose sur `real`, pas sur la présence de segments : avant
+    // l'arrivée du réseau, le worker renvoie bien des segments, mais tous droits.
+    // S'appuyer sur leur nombre faisait afficher « tracé sur les allées » à tort.
+    const suitLesAllees = props.real && props.legs.length > 0;
     const traces: L.LatLngExpression[][] = suitLesAllees
       ? props.legs.map((leg) => leg.map((p) => [p.lat, p.lng] as L.LatLngExpression))
       : routed.length
@@ -158,11 +164,14 @@ export default function ParkMap(props: {
         .on("click", () => props.onPick(r.id))
         .addTo(g);
     }
-  }, [props.waits, props.selected, props.gc, props.done, props.steps, props.positions, props.me, props.legs]);
+  }, [props.waits, props.selected, props.gc, props.done, props.steps, props.positions, props.me, props.legs, props.real]);
 
   return (
     <div className="mapwrap">
       <div ref={box} className="leafmap" />
+      <div className={"tracehint " + (props.real ? "vrai" : "approx")}>
+        {props.real ? "Tracé sur les allées" : "Tracé approximatif"}
+      </div>
       <div className="layers">
         {(["sat", "plan", "dark"] as Layer[]).map((l) => (
           <button key={l} aria-pressed={layer === l} onClick={() => setLayer(l)}>

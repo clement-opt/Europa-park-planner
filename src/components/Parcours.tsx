@@ -61,7 +61,7 @@ export default function Parcours({ day, now, positions, waits, onTick, onSelect,
   return (
     <>
       <ParkMap waits={waits} positions={positions} selected={new Set(day.sel)} gc={new Set(day.gc)}
-        done={done} steps={day.steps} onPick={setFiche} active={active} me={me} legs={legs} />
+        done={done} steps={day.steps} onPick={setFiche} active={active} me={me} legs={legs} real={graphOk} />
 
       {fiche !== null && BY_ID[fiche] && (() => {
         const r = BY_ID[fiche];

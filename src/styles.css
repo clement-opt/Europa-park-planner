@@ -671,3 +671,18 @@ details[open] > summary.mini::after { content: "▴"; }
 .tag.kid   { color: var(--gold);   border-color: color-mix(in oklab, var(--gold) 45%, transparent);   background: color-mix(in oklab, var(--gold) 12%, transparent); }
 .stopcard .tags { margin: 4px 0 2px; }
 .sheetcard .tags { margin: 0 0 10px; }
+
+/*
+  État du tracé, lisible sur la carte elle-même. La note sous la carte ne suffit
+  pas : c'est en regardant le trait qu'on se demande s'il dit vrai.
+*/
+.tracehint {
+  position: absolute; left: 12px; bottom: 12px; z-index: 500;
+  padding: 7px 12px; border-radius: 999px;
+  font-size: 13px; font-weight: 800; letter-spacing: .02em;
+  border: 2px solid; backdrop-filter: blur(8px);
+}
+.tracehint.vrai   { color: var(--rail); border-color: color-mix(in oklab, var(--rail) 55%, transparent);
+  background: color-mix(in oklab, var(--surface) 86%, transparent); }
+.tracehint.approx { color: var(--mid); border-color: color-mix(in oklab, var(--mid) 55%, transparent);
+  background: color-mix(in oklab, var(--surface) 86%, transparent); }

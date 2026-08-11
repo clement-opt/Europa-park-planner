@@ -9,6 +9,34 @@ git le fait déjà. On y écrit ce que git ne dit pas — pourquoi, et où on s'
 
 ---
 
+## Session 9 — 11/08/2026 · Le tracé ne suivait pas les allées
+
+**Bug trouvé**
+
+Le tracé restait en lignes droites toute la session, alors que le réseau d'allées était
+bien chargé. Deux défauts enchaînés :
+
+1. **Séquencement.** Le tracé était demandé au worker à chaque changement d'itinéraire,
+   mais `walk.ok` ne figurait pas dans les dépendances de l'effet. Or le réseau arrive par
+   le réseau, souvent après le premier calcul d'itinéraire : le worker n'avait pas encore
+   de graphe, renvoyait des segments droits, et n'était plus jamais resollicité.
+2. **L'indicateur mentait.** Le badge se basait sur la présence de segments. Mais avant
+   l'arrivée du réseau, le worker renvoie bien des segments — tous droits. Il affichait
+   donc « Tracé sur les allées » alors que le tracé était approximatif. Il repose
+   désormais sur l'état réel du graphe.
+
+**Vérifié** — API REST appelée avec la clé publique depuis Postgres : `ep_foot_graph`
+répond 200 et 161 682 octets d'allées, donc le réseau arrive bien jusqu'au navigateur.
+Test de non-régression avec un réseau de synthèse livré volontairement en retard :
+
+| | Badge | Segments | Points par segment |
+| --- | --- | --- | --- |
+| Avant l'arrivée du réseau | Tracé approximatif | 2 | 22 (une seule polyligne droite) |
+| Après | Tracé sur les allées | 38 | 5 (le tracé épouse la grille) |
+
+**Ajouté** — un badge sur la carte elle-même. La note sous la carte ne suffisait pas :
+c'est en regardant le trait qu'on se demande s'il dit vrai.
+
 ## Session 8 — 11/08/2026 · Noms officiels et étiquettes
 
 **Fait**
