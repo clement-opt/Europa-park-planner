@@ -6,5 +6,5 @@ dist-ssr
 .vercel
 tsconfig.tsbuildinfo
 
-# image de travail du wagon : seul le résultat détouré est versionné
-public/wagon-source.*
+# L'original du wagon est versionné dans design/ : c'en est la seule copie, et
+# sans lui le détourage n'est plus rejouable avec d'autres réglages.

@@ -9,6 +9,50 @@ git le fait déjà. On y écrit ce que git ne dit pas — pourquoi, et où on s'
 
 ---
 
+## Session 16 — 11/08/2026 · La photo du wagon, enfin posée
+
+**La photo n'avait jamais été intégrée** : le mécanisme était prêt depuis la session 8,
+mais aucun fichier source n'était dans le dépôt, donc l'écran de lancement retombait
+sur les passagers dessinés. Le fichier était pourtant sur le disque de la session, dans
+`~/.claude/uploads/` — je ne l'y avais pas cherché.
+
+**Le détourage a dû être refait.** L'ancienne règle — distance de couleur au fond,
+balayée sur toute l'image — ne pouvait pas marcher ici : un sweat noir n'est qu'à 89 du
+bleu nuit, soit plus près que le pilier à effacer. Elle aurait percé les vêtements avant
+de nettoyer le décor. Deux critères l'ont remplacée :
+
+- **Le fond** est le seul élément bleuté. Son écart bleu − rouge va de 33 à 87 ; aucun
+  pixel des passagers ne dépasse 14, peau, cheveux et noirs étant neutres ou chauds.
+- **La voie et les piliers** sont peints en blanc translucide : ils prennent la teinte
+  de ce qu'ils recouvrent, et aucun seuil ne les distingue du sweat gris d'une
+  passagère. Ce qui les trahit est topologique — ce sont les seules choses opaques qui
+  touchent encore le bord de l'image.
+
+Les deux passes propagent depuis le cadre au lieu de balayer : une couleur de décor
+prisonnière du sujet n'est jamais atteinte, donc ne perce pas de trou. C'est ce qui
+laisse quelques échardes bleues entre une épaule et la caisse — invisibles, elles ont
+la couleur du ciel de l'écran de lancement. Une dernière passe retire les miettes que
+la propagation ne pouvait pas atteindre : les étoiles, et les traverses sombres restées
+à flotter dans un rail devenu transparent.
+
+**Redressée de 26°.** `animateMotion` incline déjà le wagon selon la pente ; une photo
+en pente aurait cumulé les deux. Et comme le wagon photographié est bien plus long que
+celui qu'il remplace, il décollait du rail par les deux bouts sur une crête : enfoncé de
+6 unités, il enjambe la voie au lieu de la survoler. Vérifié à cinq instants du trajet.
+
+**L'icône reprend le wagon** plutôt qu'un selfie rogné en rond, qui ne gardait qu'un
+visage ou deux à 192 px.
+
+**Constaté**
+
+- `public/` est recopié tel quel dans `dist/` puis préchargé **en entier** par le service
+  worker. L'original de 1,5 Mo y aurait été téléchargé sur chaque téléphone sans jamais
+  être affiché : il vit maintenant dans `design/`, hors de la publication.
+- `icon-fallback.png` était généré mais référencé nulle part — 93 Ko préchargés pour
+  rien. Supprimé.
+- Malgré l'ajout de la photo, le précache est revenu à son niveau d'avant (1 199 Ko) :
+  la palette indexée a plus que compensé.
+
 ## Session 15 — 11/08/2026 · Le défilement animé se faisait écraser
 
 **Le retour en haut ne marchait toujours pas sur l'appareil**, alors qu'il passait au
@@ -144,7 +188,7 @@ rejouables sur `npm run preview`. Les deux passent à zéro défaut.
 
 **Reste ouvert** — tout est bloqué sur un élément extérieur :
 
-- [ ] `public/wagon-source.png` à déposer, puis `node scripts/cut-wagon.mjs --rails`.
+- [x] Photo du wagon — faite en session 16, la source était dans `~/.claude/uploads/`.
 - [ ] Comparer `europa_park.curve` à `CURVE` : demande plusieurs jours de collecte.
 - [ ] Confirmer si sept VirtualLine sont réservables simultanément : demande une source.
 - [ ] Vérifier durées de tour et fiches d'attraction sur place.

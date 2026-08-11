@@ -155,7 +155,13 @@
                 Wagon photo : une seule image détourée, posée sur la trajectoire.
                 Elle remplace tout le wagon dessiné dès que public/wagon.png existe.
               -->
-              <image id="wagonphoto" x="-116" y="-136" width="232" height="156" visibility="hidden"
+              <!--
+                Le wagon photographié est bien plus long que celui qui est dessiné,
+                et une caisse rigide posée sur une crête décolle forcément du rail
+                par les deux bouts. On l'enfonce de quelques unités : il enjambe la
+                voie, qui passe dessous, au lieu de la survoler.
+              -->
+              <image id="wagonphoto" x="-116" y="-130" width="232" height="156" visibility="hidden"
                      preserveAspectRatio="xMidYMax meet"/>
 
               <!-- Photo réelle : cinq hublots ronds, remplis dès que les têtes existent. -->

@@ -185,9 +185,13 @@ npm run preview  # sert dist/ pour tester le service worker
 
 node scripts/check-api.mjs        # croise le référentiel avec l'API réelle
 node scripts/audit-ergonomie.mjs  # contraste, cibles, noms accessibles, focus
-node scripts/make-icons.mjs       # icônes de la PWA
-node scripts/cut-wagon.mjs        # détoure le wagon de l'écran de lancement
-node scripts/cut-heads.mjs        # découpe les visages du groupe
+node scripts/cut-wagon.mjs --rails --rotation=-26   # détoure le wagon
+node scripts/make-icons.mjs                        # icônes de la PWA, d'après le wagon
+node scripts/cut-heads.mjs                         # découpe les visages du groupe
 ```
+
+L'ordre compte : `make-icons` reprend le wagon détouré, donc `cut-wagon` passe avant.
+L'original du wagon vit dans `design/`, jamais dans `public/` — ce dossier est recopié
+tel quel dans `dist/` puis préchargé en entier par le service worker.
 
 Le déploiement est branché sur GitHub : tout push sur `main` déclenche un build Vercel.
