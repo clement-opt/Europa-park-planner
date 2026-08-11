@@ -8,6 +8,7 @@ import { copySelection, exportSelectionFile, load, merge, save, shareable, type 
 import { deviceName, fetchFootWays, pullState, pushState, stampState, type SyncState } from "./lib/sync";
 import Selection from "./components/Selection";
 import Parcours from "./components/Parcours";
+import Section from "./components/Section";
 
 /** Petite gerbe d'étincelles à l'endroit du clic. */
 function sparkle(x: number, y: number, color: string) {
@@ -274,6 +275,16 @@ export default function App() {
         <div className="cell"><u>Relevés</u><b className="mono">{journalSize}</b></div>
       </div>
 
+      {tab === "sel" && day.sel.length > 0 && (
+        <div className="dock">
+          <button className="cta" onClick={() => compute(false)} disabled={planning}>
+            {planning ? "Optimisation en cours…"
+              : day.steps.length ? `Recalculer · ${day.sel.length} attractions`
+              : `Calculer l'itinéraire · ${day.sel.length} attractions`}
+          </button>
+        </div>
+      )}
+
       <nav className="tabs" role="tablist">
         <button role="tab" aria-selected={tab === "sel"} onClick={() => setTab("sel")}>
           Attractions<span className="cnt">{day.sel.length}</span>
@@ -291,7 +302,7 @@ export default function App() {
               affichées sont celles du relevé de secours. Vérifiez la connexion, puis appuyez sur
               le bouton d'actualisation en haut à droite.
               <details style={{ marginTop: 10 }}>
-                <summary className="f" style={{ cursor: "pointer" }}>Relais personnel (optionnel)</summary>
+                <summary className="mini">Relais personnel (optionnel)</summary>
                 <p className="note" style={{ margin: "8px 0" }}>
                   Utile seulement si le serveur reste injoignable. Déployez <code>worker/queue-proxy.js</code>
                   sur Cloudflare et collez l'URL du Worker suivie de <code>/?url=</code>.
@@ -314,37 +325,29 @@ export default function App() {
           <Selection day={day} setDay={setDay} waits={waits} pace={st.pace}
             setPace={(v) => setSt((s) => ({ ...s, pace: v }))} toast={toast} sparkle={sparkle} />
 
-          <button className="cta" onClick={() => compute(false)} disabled={planning}>
-            {planning ? "Optimisation en cours…" : "Calculer l'itinéraire"}
-          </button>
-          <button className="cta alt" onClick={async () => setToast((await copySelection(st)) ? "Sélection copiée" : "Copie impossible")}>
-            Copier ma sélection
-          </button>
-          <button className="cta alt" onClick={() => exportSelectionFile(st)}>Exporter la sélection (.json)</button>
-
-          <div className="card" style={{ marginTop: 16 }}>
-            <h3>Partage et journal</h3>
-            <div className="pad">
-              <p className="note" style={{ marginTop: 0 }}>
-                Code de séjour <b className="mono">{st.code}</b>. Tous les téléphones qui portent ce code
-                partagent la même sélection et le même avancement.
-              </p>
-              <div className="row" style={{ marginTop: 12 }}>
-                <button className="ghost" aria-pressed={st.shared}
-                  onClick={() => setSt((s) => ({ ...s, shared: !s.shared }))}>
-                  {st.shared ? "Synchronisation active" : "Synchronisation coupée"}
-                </button>
-                <button className="ghost" onClick={downloadMarkdown}>Journal (.md)</button>
-                <button className="ghost" onClick={() => { clearJournal(); setJournalSize(0); setToast("Journal effacé"); }}>
-                  Effacer le journal
-                </button>
-              </div>
+          <Section title="Partage, export et journal" badge={st.shared ? "synchro" : "local"}>
+            <p className="note" style={{ marginTop: 0 }}>
+              Code de séjour <b className="mono">{st.code}</b>. Tous les téléphones qui portent ce code
+              partagent la même sélection et le même avancement.
+            </p>
+            <div className="row" style={{ marginTop: 12 }}>
+              <button className="ghost" aria-pressed={st.shared}
+                onClick={() => setSt((s) => ({ ...s, shared: !s.shared }))}>
+                {st.shared ? "Synchronisation active" : "Synchronisation coupée"}
+              </button>
+              <button className="ghost" onClick={async () => setToast((await copySelection(st)) ? "Sélection copiée" : "Copie impossible")}>
+                Copier la sélection
+              </button>
+              <button className="ghost" onClick={() => exportSelectionFile(st)}>Exporter (.json)</button>
+              <button className="ghost" onClick={downloadMarkdown}>Journal (.md)</button>
+              <button className="ghost" onClick={() => { clearJournal(); setJournalSize(0); setToast("Journal effacé"); }}>
+                Effacer le journal
+              </button>
+              <button className="ghost" onClick={() => setDay({ sel: [], gc: [], vl: [], done: [], first: null, steps: [] })}>
+                Réinitialiser le jour {st.day}
+              </button>
             </div>
-          </div>
-
-          <button className="cta alt" onClick={() => setDay({ sel: [], gc: [], vl: [], done: [], first: null, steps: [] })}>
-            Réinitialiser le jour {st.day}
-          </button>
+          </Section>
         </section>
 
         <section className={"pane" + (tab === "go" ? " on" : "")}>

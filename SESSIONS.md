@@ -9,6 +9,58 @@ git le fait déjà. On y écrit ce que git ne dit pas — pourquoi, et où on s'
 
 ---
 
+## Session 4 — 11/08/2026 · Serveur, écran de lancement, audit
+
+**Fait**
+
+- **Temps d'attente servis par le serveur** (`ep_waits()`). La collecte tournait déjà
+  côté Postgres toutes les 5 minutes, sans contrainte CORS : autant servir ce qu'on a.
+  L'app lit serveur → relais publics → relevé figé. **Le Worker Cloudflare devient
+  facultatif**, plus rien à déployer ni à coller.
+- **Réseau piéton figé côté serveur** (`ep_foot_graph()`) : 1104 chemins, 7594 points,
+  158 ko. Overpass n'est plus qu'un secours. Mis en cache localement après le premier
+  chargement, donc disponible hors ligne.
+- **Écran de lancement** refait autour d'une montagne russe qui traverse l'écran. Le
+  wagon suit le tracé en `animateMotion`, s'incline dans les côtes, et sa course est la
+  barre de chargement. Cinq passagers dessinés, bras en l'air.
+- **Barre d'action collante** : le bouton de calcul suivait mal une page de 3 000 px.
+- **Blocs repliables** pour les réglages et les quartiers, échelle typo baissée d'un cran,
+  trèfle remplacé par un billet, bouton « Étape faite » sur la carte de tête.
+- `scripts/cut-heads.mjs` : découpe les visages de `public/equipe.jpg` en ronds ;
+  l'écran de lancement les détecte et remplace les passagers dessinés.
+
+**Audit navigateur** (390, 430, 820, 1440 px)
+
+| Contrôle | Résultat |
+| --- | --- |
+| Débordement horizontal | aucun |
+| Erreurs console | aucune |
+| Cibles tactiles | toutes ≥ 40 px |
+| Texte | rien sous 12,5 px hors attribution Leaflet |
+| Parcours complet | calcul, validation, retrait, ajout : tous vérifiés par nom |
+| Thème clair / sombre | bascule OK |
+| Service worker | actif |
+| Manifest | 4 icônes dont une maskable, `standalone` |
+| Hors ligne | l'app se rend |
+| Charge utile synchro | 25 ko pour deux jours planifiés, plafond serveur 200 ko |
+
+**Constaté**
+
+- Le retrait d'une étape fait parfois **monter** le nombre d'étapes : le planificateur
+  remplit le temps libéré. C'est le comportement voulu, pas une régression — un premier
+  test l'avait signalé à tort.
+- La photo du groupe ne peut pas être extraite de la conversation. Tout est prêt pour
+  l'accueillir : `public/equipe.jpg` puis `node scripts/cut-heads.mjs`.
+
+**Reste ouvert**
+
+- [ ] Déposer `public/equipe.jpg` et lancer les deux scripts d'images.
+- [ ] Comparer `europa_park.curve` à `CURVE` une fois quelques jours collectés.
+- [ ] Confirmer si sept VirtualLine sont réservables simultanément.
+- [ ] `buildWalkMatrix` fait 37 Dijkstra sur le fil principal ; à passer en Web Worker
+      si un ralentissement se voit au chargement sur téléphone.
+- [ ] Vérifier durées de tour et fiches attractions sur place.
+
 ## Session 3 — 11/08/2026 · Refonte v2
 
 **Fait**

@@ -529,3 +529,71 @@ input[type="range"] { width: 100%; accent-color: var(--rail); height: 46px; }
   .stop { grid-template-columns: 72px 22px 1fr; }
   .stop .hh u { font-size: 12.5px; }
 }
+
+/*
+  Barre d'action collante. Le bouton de calcul était en bas d'une page de
+  3 000 px : on sélectionnait, puis on cherchait. Il suit maintenant le scroll,
+  juste au-dessus des onglets, et rappelle le nombre d'attractions retenues.
+*/
+.dock {
+  position: fixed; left: 0; right: 0; z-index: 65;
+  bottom: calc(58px + env(safe-area-inset-bottom));
+  padding: 10px 16px 12px;
+  background: linear-gradient(to top, var(--paper) 62%, transparent);
+  animation: dock-in .3s cubic-bezier(.2,.8,.2,1);
+}
+.dock .cta { margin: 0; box-shadow: var(--shadow-lg); }
+@keyframes dock-in { from { opacity: 0; transform: translateY(14px); } }
+
+@media (min-width: 1180px) {
+  .dock { position: sticky; bottom: 0; padding: 12px 0 0; background: none; }
+}
+
+/* La barre couvre le bas : on rend le fond de page un peu plus généreux. */
+@media (max-width: 1179px) {
+  .pane { padding-bottom: calc(190px + env(safe-area-inset-bottom)); }
+}
+
+/* Dépliant discret, mais avec une vraie surface de contact. */
+summary.mini {
+  display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 10px 2px;
+  cursor: pointer; list-style: none;
+  font-size: 14px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em;
+  color: var(--ink-2);
+}
+summary.mini::-webkit-details-marker { display: none; }
+summary.mini::after { content: "▾"; margin-left: auto; font-size: 15px; }
+details[open] > summary.mini::after { content: "▴"; }
+
+/* ---- couche d'effets ---- */
+.cta {
+  background: linear-gradient(150deg, var(--rail-2), var(--rail) 60%);
+  position: relative; overflow: hidden;
+}
+.cta.alt { background: var(--surface); }
+.cta:not(.alt)::before {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(115deg, transparent 40%, rgba(255,255,255,.28) 50%, transparent 60%);
+  transform: translateX(-100%); transition: transform .7s cubic-bezier(.2,.8,.2,1);
+}
+.cta:not(.alt):hover::before { transform: translateX(100%); }
+
+.stop.now .stopcard::before {
+  content: ""; position: absolute; left: -6px; top: 0; bottom: 0; width: 6px;
+  background: var(--rail); animation: pulse-bar 2.2s ease-in-out infinite;
+}
+.stop.now .stopcard { position: relative; }
+@keyframes pulse-bar { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+
+.tok.armed { animation: tok-in .32s cubic-bezier(.2,1.4,.4,1); }
+@keyframes tok-in { from { transform: scale(.5) rotate(-12deg); opacity: 0; } }
+
+.wt { transition: transform .2s cubic-bezier(.2,1.5,.4,1); }
+.ride:hover .wt { transform: scale(1.06); }
+
+.sect.zone[open] > summary { box-shadow: inset 0 -1px 0 color-mix(in oklab, hsl(var(--zh) 55% 50%) 45%, transparent); }
+
+@media (prefers-reduced-motion: reduce) {
+  .dock, .tok.armed { animation: none; }
+  .cta:not(.alt)::before, .stop.now .stopcard::before { display: none; }
+}
