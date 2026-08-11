@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 /**
  * Une action irréversible demande deux gestes : le premier arme le bouton, le second
@@ -10,10 +10,12 @@ import { useEffect, useState } from "react";
  * bloque le rendu, et sur iOS en mode autonome elle apparaît sans le contexte de ce
  * qu'on s'apprête à perdre. Ici la question est écrite sur le bouton lui-même.
  */
-export default function BoutonDanger({ label, confirmation, onConfirm }: {
-  label: string;
-  confirmation: string;
+export default function BoutonDanger({ label, confirmation, onConfirm, className = "ghost", title }: {
+  label: ReactNode;
+  confirmation: ReactNode;
   onConfirm: () => void;
+  className?: string;
+  title?: string;
 }) {
   const [arme, setArme] = useState(false);
 
@@ -25,7 +27,8 @@ export default function BoutonDanger({ label, confirmation, onConfirm }: {
 
   return (
     <button
-      className={arme ? "ghost arme" : "ghost"}
+      className={arme ? `${className} arme` : className}
+      title={title}
       onClick={() => { if (!arme) return setArme(true); setArme(false); onConfirm(); }}
     >
       {arme ? confirmation : label}

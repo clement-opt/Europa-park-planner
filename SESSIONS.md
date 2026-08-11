@@ -30,7 +30,8 @@ explicite d'obtenir un parcours calé sur le temps qui reste.
 - « Réinitialiser le jour » effaçait sélection, jokers, VirtualLine et parcours en un
   seul tap, sans retour arrière. Passé à deux gestes via `BoutonDanger`, qui écrit la
   question et ce qu'on perd sur le bouton lui-même, et se désarme après cinq secondes.
-  Même traitement pour « Effacer le journal ».
+  Même traitement pour « Effacer le journal » et pour la croix qui supprimait un lot —
+  une sélection qu'on a justement pris le temps de figer.
 - **La sauvegarde partagée pouvait écraser le groupe.** La poussée est différée d'une
   seconde et demie, la lecture n'a aucun délai garanti : sur le réseau du parc, un
   téléphone qui démarre publiait son état local avant d'avoir lu celui des autres.

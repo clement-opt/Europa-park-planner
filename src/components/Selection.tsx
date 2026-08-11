@@ -4,6 +4,7 @@ import { applyLot, newLot } from "../lib/storage";
 import type { DayPlan, Lot } from "../lib/planner";
 import type { Horaire } from "../lib/sync";
 import Section from "./Section";
+import BoutonDanger from "./BoutonDanger";
 import { Check, Pass, Star, Lock } from "./icons";
 
 /** Préfixe `w-` : `.stop` désigne déjà une étape d'itinéraire, la collision faisait
@@ -258,7 +259,9 @@ export default function Selection({ day, setDay, waits, pace, setPace, toast, sp
                 onClick={() => setLots(day.lots.map((x) => (x.id === l.id ? { ...x, locked: !x.locked } : x)))}>
                 <Lock />
               </button>
-              <button className="lk" title="Supprimer" onClick={() => setLots(day.lots.filter((x) => x.id !== l.id))}>✕</button>
+              <BoutonDanger className="lk" title={`Supprimer le lot ${l.name}`}
+                label="✕" confirmation="Supprimer ?"
+                onConfirm={() => { setLots(day.lots.filter((x) => x.id !== l.id)); toast(`Lot « ${l.name} » supprimé`); }} />
             </div>
           </div>
         ))}
