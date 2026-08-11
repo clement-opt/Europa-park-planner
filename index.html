@@ -91,10 +91,14 @@
             </linearGradient>
           </defs>
 
-          <!-- Piliers -->
+          <!--
+            Piliers : les sommets sont calculés sur la courbe elle-même, pas posés
+            à vue. Chaque abscisse est évaluée sur les quatre béziers du tracé, donc
+            la structure touche le rail exactement là où il passe.
+          -->
           <g stroke="#F6F1E7" stroke-opacity=".28" stroke-width="4" stroke-linecap="round">
-            <path d="M120,238 V420 M260,178 V420 M400,300 V420 M560,150 V420 M700,130 V420 M860,268 V420"/>
-            <path d="M120,300 L260,240 M400,340 L560,250 M700,230 L860,300" stroke-opacity=".18"/>
+            <path d="M60,237 V420 M180,150 V420 M300,212 V420 M420,301 V420 M540,203 V420 M660,125 V420 M780,178 V420 M900,245 V420 M990,225 V420"/>
+            <path d="M60,283 L180,420 M60,420 L180,283 M180,258 L300,420 M180,420 L300,258 M300,347 L420,420 M300,420 L420,347 M420,347 L540,420 M420,420 L540,347 M540,249 L660,420 M540,420 L660,249 M660,224 L780,420 M660,420 L780,224 M780,291 L900,420 M780,420 L900,291 M900,291 L990,420 M900,420 L990,291" stroke-opacity=".15" stroke-width="3"/>
           </g>
 
           <!-- Voie : un trait plein, des traverses par-dessus -->
