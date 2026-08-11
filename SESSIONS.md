@@ -9,6 +9,52 @@ git le fait déjà. On y écrit ce que git ne dit pas — pourquoi, et où on s'
 
 ---
 
+## Session 5 — 11/08/2026 · Géolocalisation
+
+**Fait**
+
+- **Suivi GPS du téléphone.** Bouton « Me localiser dans le parc » dans l'onglet Parcours.
+  La position ne quitte jamais l'appareil : elle n'est ni enregistrée, ni poussée dans
+  l'état partagé du groupe. Le suivi est explicite, jamais automatique — un GPS qui tourne
+  sans qu'on l'ait demandé vide la batterie qui doit tenir la journée.
+- **Recalcul depuis la position réelle.** `buildPlan` accepte un point de départ : quand le
+  GPS est actif, « Recalculer à partir de maintenant » part d'où vous êtes et non de la
+  dernière attraction cochée. Un Dijkstra de plus depuis le point d'allée le plus proche.
+- **Amortissement** : la matrice n'est recalculée qu'au-delà de ~25 m de déplacement. En
+  deçà, les temps de marche ne bougent pas d'une minute.
+- **« Autour de vous »** : les six attractions les plus proches à pied, avec leur temps de
+  marche réel et leur file. Un appui les ajoute au parcours. C'est la réponse à « on passe
+  devant un truc, ça vaut le coup ? ».
+- Le quartier de départ amorce la prime de cohérence quand on part du GPS, sinon le premier
+  saut pouvait traverser le parc avec trois attractions sous les pieds.
+- Marqueur de position sur la carte, halo de précision, anneau pulsé.
+
+**Bug trouvé et corrigé**
+
+`.stop` désignait à la fois une étape d'itinéraire et une file d'attente longue
+(`.wt.stop`). Les pastilles de temps d'attente héritaient donc de `display: grid` et de
+`grid-template-columns: 64px 22px 1fr`, la grille de la timeline. Visuellement ça passait
+par chance, mais **cela faussait aussi les mesures des sessions précédentes** : les
+comptes d'étapes annoncés (38, 23, 24) additionnaient les étapes et les pastilles. Le
+compte réel est de 15 étapes pour un préréglage Mix. Les vérifications faites *par nom*
+d'attraction, elles, restent valides. Niveaux d'attente renommés `w-go`, `w-mid`,
+`w-stop`, `w-closed`.
+
+**Vérifié au navigateur**, position simulée en Islande près de blue fire :
+
+- « Autour de vous » renvoie blue fire, WODAN et Whale Adventures à 2 min — cohérent ;
+- la cellule Position affiche `suivi actif · ±12 m` ;
+- le plan change avec le GPS : Eurosat CanCan Coaster → Tirol Log Flume en tête ;
+- aucune erreur console.
+
+**Reste ouvert**
+
+- [ ] Déposer `public/equipe.jpg` puis `node scripts/cut-heads.mjs`.
+- [ ] Comparer `europa_park.curve` à `CURVE` une fois quelques jours collectés.
+- [ ] Confirmer si sept VirtualLine sont réservables simultanément.
+- [ ] `buildWalkMatrix` : 37 Dijkstra sur le fil principal, à passer en Web Worker si un
+      ralentissement se voit sur téléphone. Le GPS en ajoute un à chaque déplacement notable.
+
 ## Session 4 — 11/08/2026 · Serveur, écran de lancement, audit
 
 **Fait**

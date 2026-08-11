@@ -81,7 +81,7 @@ out center tags;`;
 /* Graphe des allées                                                    */
 /* ------------------------------------------------------------------ */
 
-type Graph = { pts: LatLng[]; adj: { to: number; d: number }[][] };
+export type Graph = { pts: LatLng[]; adj: { to: number; d: number }[][] };
 
 /** 1e-5 degré ≈ 1 m : deux points d'allées à moins d'un mètre sont le même carrefour. */
 const key = (lat: number, lng: number) => `${lat.toFixed(5)},${lng.toFixed(5)}`;
@@ -226,6 +226,15 @@ export type WalkMatrix = { m: Record<number, Record<number, number>>; ok: boolea
 /** Clé de l'entrée du parc dans la matrice. Les autres clés sont les `id` d'attraction. */
 export const ENTRANCE_KEY = 0;
 
+/** Clé de votre position réelle. Négative pour ne jamais heurter un identifiant d'attraction. */
+export const ME_KEY = -1;
+
+/** Le parc, élargi de ~150 m : au-delà, une position GPS n'a plus de sens ici. */
+export function inPark(p: LatLng) {
+  const m = 0.0015;
+  return p.lat > BBOX.s - m && p.lat < BBOX.n + m && p.lng > BBOX.w - m && p.lng < BBOX.e + m;
+}
+
 /**
  * Distances réelles à pied entre l'entrée et toutes les attractions.
  * Trente-sept Dijkstra sur un graphe de quelques milliers de nœuds : quelques
@@ -261,3 +270,31 @@ export function buildWalkMatrix(g: Graph | null, pos: (r: Ride) => LatLng): Walk
 
 export const walkFromMatrix = (w: WalkMatrix, from: number, to: number, kmh: number) =>
   Math.max(2, Math.round((w.m[from]?.[to] ?? 0) / ((kmh * 1000) / 60)));
+
+/**
+ * Ajoute votre position à la matrice : un Dijkstra de plus, depuis le point d'allée
+ * le plus proche de vous. C'est ce qui permet de recalculer depuis là où vous êtes
+ * vraiment, et non depuis la dernière attraction cochée.
+ */
+export function withMe(w: WalkMatrix, g: Graph | null, me: LatLng, pos: (r: Ride) => LatLng): WalkMatrix {
+  const cibles: { k: number; p: LatLng }[] = [
+    { k: ENTRANCE_KEY, p: ENTRANCE },
+    ...RIDES.map((r) => ({ k: r.id, p: pos(r) }))
+  ];
+  const row: Record<number, number> = { [ME_KEY]: 0 };
+
+  if (!g) {
+    for (const c of cibles) row[c.k] = metres(me, c.p) * 1.35;
+  } else {
+    const dist = dijkstra(g, nearest(g, me));
+    for (const c of cibles) {
+      const d = dist[nearest(g, c.p)];
+      row[c.k] = Number.isFinite(d) ? d : metres(me, c.p) * 1.35;
+    }
+  }
+
+  const m: Record<number, Record<number, number>> = { ...w.m, [ME_KEY]: row };
+  // Le trajet est symétrique : on renseigne aussi la colonne.
+  for (const c of cibles) m[c.k] = { ...(m[c.k] ?? {}), [ME_KEY]: row[c.k] };
+  return { m, ok: w.ok };
+}

@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { RIDES, zoneOf, type Ride } from "../data/rides";
+import { BY_ID, RIDES, zoneOf, type Ride } from "../data/rides";
 import { hhmm, type DayPlan, type Step } from "../lib/planner";
-import type { LatLng } from "../lib/geo";
+import { ME_KEY, walkFromMatrix, type LatLng, type WalkMatrix } from "../lib/geo";
+import { geoLabel, type GeoState } from "../lib/position";
 import ParkMap from "./ParkMap";
 import { Check, Pass, Star } from "./icons";
 
@@ -22,9 +23,14 @@ type Props = {
   planning: boolean;
   onRemove: (id: number) => void;
   onAdd: (id: number) => void;
+  me: LatLng | null;
+  geoState: GeoState;
+  onGeo: () => void;
+  walk: WalkMatrix;
+  pace: number;
 };
 
-export default function Parcours({ day, now, positions, waits, onTick, onSelect, compute, graphOk, osmCount, active, planning, onRemove, onAdd }: Props) {
+export default function Parcours({ day, now, positions, waits, onTick, onSelect, compute, graphOk, osmCount, active, planning, onRemove, onAdd, me, geoState, onGeo, walk, pace }: Props) {
   const [adding, setAdding] = useState(false);
   const done = new Set(day.done);
 
@@ -35,13 +41,31 @@ export default function Parcours({ day, now, positions, waits, onTick, onSelect,
   const next = rides[0] ?? null;
   const order = new Map(rides.map((s, i) => [s.ride.id, i + 1]));
 
+  /**
+   * Autour de vous : les attractions les plus proches à pied, avec leur attente.
+   * C'est la réponse à « on voit un truc en passant, ça vaut le coup ? ».
+   */
+  const autour = me && walk.m[ME_KEY]
+    ? RIDES
+        .filter((r) => !done.has(r.id) && waits[r.id] >= 0)
+        .map((r) => ({ r, min: walkFromMatrix(walk, ME_KEY, r.id, pace) }))
+        .sort((a, b) => a.min - b.min)
+        .slice(0, 6)
+    : [];
+
   const minFile = rides.reduce((a, s) => a + s.wait, 0);
   const gagnees = rides.reduce((a, s) => a + s.saved, 0);
 
   return (
     <>
       <ParkMap waits={waits} positions={positions} selected={new Set(day.sel)} gc={new Set(day.gc)}
-        done={done} steps={day.steps} onToggle={onSelect} active={active} />
+        done={done} steps={day.steps} onToggle={onSelect} active={active} me={me} />
+
+      <div className="row" style={{ marginTop: 12, marginBottom: 0 }}>
+        <button className="ghost" style={{ flex: 1 }} aria-pressed={geoState === "on"} onClick={onGeo}>
+          {geoState === "on" ? "Suivi GPS actif · couper" : "Me localiser dans le parc"}
+        </button>
+      </div>
 
       <p className="note" style={{ margin: "10px 0 16px" }}>
         {graphOk
@@ -49,6 +73,38 @@ export default function Parcours({ day, now, positions, waits, onTick, onSelect,
           : "Allées non chargées : les temps de marche sont estimés à vol d'oiseau."}
         {osmCount ? ` Positions OpenStreetMap pour ${osmCount} attractions.` : " Positions estimées par quartier."}
       </p>
+
+      {geoState === "denied" && (
+        <p className="note" style={{ marginTop: 10 }}>
+          Localisation refusée. Autorisez-la dans les réglages du navigateur pour que les temps
+          de marche partent d'où vous êtes.
+        </p>
+      )}
+      {geoState === "outside" && (
+        <p className="note" style={{ marginTop: 10 }}>
+          Position trouvée mais hors du parc : le plan repart de la dernière attraction cochée.
+        </p>
+      )}
+
+      {autour.length > 0 && (
+        <div className="card" style={{ marginTop: 16 }}>
+          <h3>Autour de vous <em>à pied</em></h3>
+          <div className="autour">
+            {autour.map(({ r, min }) => (
+              <button key={r.id} className="prox" style={{ ["--zh" as string]: zoneOf(r.z).hue }}
+                onClick={() => onAdd(r.id)} disabled={day.sel.includes(r.id)}
+                title={day.sel.includes(r.id) ? "Déjà dans le parcours" : "Ajouter au parcours"}>
+                <b>{r.n}</b>
+                <small>{zoneOf(r.z).flag} {r.z}</small>
+                <span className="mono d">{min} min</span>
+                <span className={"mono w " + (waits[r.id] < 20 ? "w-go" : waits[r.id] <= 45 ? "w-mid" : "w-stop")}>
+                  file {waits[r.id]} min
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {next && (
         <div className="nextup" style={{ ["--zh" as string]: zoneOf(next.ride.z).hue }}>

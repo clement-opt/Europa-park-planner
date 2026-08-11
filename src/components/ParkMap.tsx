@@ -37,6 +37,7 @@ export default function ParkMap(props: {
   steps: Step[];
   onToggle: (id: number) => void;
   active: boolean;
+  me: LatLng | null;
 }) {
   const box = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
@@ -95,6 +96,20 @@ export default function ParkMap(props: {
       L.polyline(pts, { color: "#4d87e0", weight: 12, opacity: .16, lineCap: "round" }).addTo(g);
     }
 
+    if (props.me) {
+      // Halo puis pastille : on distingue la position du groupe des attractions.
+      L.circleMarker([props.me.lat, props.me.lng], {
+        radius: 16, color: "#2E7CB6", weight: 2, opacity: .45, fillColor: "#2E7CB6", fillOpacity: .16
+      }).addTo(g);
+      L.marker([props.me.lat, props.me.lng], {
+        icon: L.divIcon({
+          className: "",
+          html: `<div class="pinmark me" style="width:20px;height:20px;background:#2E7CB6"></div>`,
+          iconSize: [20, 20], iconAnchor: [10, 10]
+        }), zIndexOffset: 900
+      }).bindTooltip("Vous êtes ici").addTo(g);
+    }
+
     L.marker([ENTRANCE.lat, ENTRANCE.lng], {
       icon: L.divIcon({
         className: "",
@@ -125,7 +140,7 @@ export default function ParkMap(props: {
         .on("click", () => props.onToggle(r.id))
         .addTo(g);
     }
-  }, [props.waits, props.selected, props.gc, props.done, props.steps, props.positions]);
+  }, [props.waits, props.selected, props.gc, props.done, props.steps, props.positions, props.me]);
 
   return (
     <div className="mapwrap">

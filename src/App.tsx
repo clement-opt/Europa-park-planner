@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BY_ID, RIDES, type Ride } from "./data/rides";
 import { fetchWaits, type Snapshot } from "./lib/api";
-import { buildWalkMatrix, fetchFootGraph, fetchOsmPositions, type LatLng, type WalkMatrix } from "./lib/geo";
+import { buildWalkMatrix, fetchFootGraph, fetchOsmPositions, withMe, type Graph, type LatLng, type WalkMatrix } from "./lib/geo";
 import { buildPlan, clockMin, hhmm, type DayPlan } from "./lib/planner";
 import { downloadMarkdown, loadJournal, record, clearJournal } from "./lib/journal";
 import { copySelection, exportSelectionFile, load, merge, save, shareable, type AppState } from "./lib/storage";
@@ -9,6 +9,7 @@ import { deviceName, fetchFootWays, pullState, pushState, stampState, type SyncS
 import Selection from "./components/Selection";
 import Parcours from "./components/Parcours";
 import Section from "./components/Section";
+import { geoLabel, usePosition } from "./lib/position";
 
 /** Petite gerbe d'étincelles à l'endroit du clic. */
 function sparkle(x: number, y: number, color: string) {
@@ -34,6 +35,8 @@ export default function App() {
   const [snap, setSnap] = useState<Snapshot | null>(null);
   const [osm, setOsm] = useState<Record<number, LatLng>>({});
   const [walk, setWalk] = useState<WalkMatrix>({ m: {}, ok: false });
+  const [graph, setGraph] = useState<Graph | null>(null);
+  const geo = usePosition();
   const [tab, setTab] = useState<"sel" | "go">("sel");
   const [busy, setBusy] = useState(false);
   const [toastMsg, setToast] = useState("");
@@ -96,10 +99,26 @@ export default function App() {
     setWalk(buildWalkMatrix(null, positions));
     fetchFootGraph(fetchFootWays).then((g) => {
       if (!alive || !g) return;
+      setGraph(g);
       setWalk(buildWalkMatrix(g, positions));
     });
     return () => { alive = false; };
   }, [positions]);
+
+  /**
+   * La position rejoint la matrice de marche. On ne recalcule pas à chaque
+   * frémissement du GPS : en dessous de 25 m de déplacement, les temps de marche
+   * ne bougent pas d'une minute, et un Dijkstra de plus ne sert à rien.
+   */
+  const dernierFix = useRef<LatLng | null>(null);
+  useEffect(() => {
+    if (!geo.usable || !geo.fix) return;
+    const p = geo.fix.p;
+    const d = dernierFix.current;
+    if (d && Math.abs(d.lat - p.lat) < 2.3e-4 && Math.abs(d.lng - p.lng) < 3.4e-4) return;
+    dernierFix.current = p;
+    setWalk((w) => withMe(w, graph, p, positions));
+  }, [geo.usable, geo.fix, graph, positions]);
 
   /* ---- sauvegarde partagée ---- */
   useEffect(() => {
@@ -174,20 +193,20 @@ export default function App() {
     setPlanning(true);
     setTab("go");
     window.setTimeout(() => {
-      const steps = buildPlan({ day, snap, pace: st.pace, positions, walk, fromNow, rides: RIDES });
+      const steps = buildPlan({ day, snap, pace: st.pace, positions, walk, fromNow, rides: RIDES, me: geo.usable ? geo.fix!.p : null });
       setDay({ steps });
       setPlanning(false);
       const n = steps.filter((x) => x.kind === "ride").length;
       setToast(`Parcours calculé · ${n} attraction${n > 1 ? "s" : ""}`);
     }, 420);
-  }, [snap, day, st.pace, positions, walk, setDay]);
+  }, [snap, day, st.pace, positions, walk, setDay, geo.usable, geo.fix]);
 
   /** Recalcul silencieux, après un ajout ou un retrait en cours de route. */
   const replan = useCallback((patch: Partial<DayPlan>) => {
     const next = { ...day, ...patch };
     if (!snap || !day.steps.length) return setDay(patch);
-    setDay({ ...patch, steps: buildPlan({ day: next, snap, pace: st.pace, positions, walk, fromNow: true, rides: RIDES }) });
-  }, [day, snap, st.pace, positions, walk, setDay]);
+    setDay({ ...patch, steps: buildPlan({ day: next, snap, pace: st.pace, positions, walk, fromNow: true, rides: RIDES, me: geo.usable ? geo.fix!.p : null }) });
+  }, [day, snap, st.pace, positions, walk, setDay, geo.usable, geo.fix]);
 
   const onRemove = useCallback((id: number) => {
     replan({
@@ -215,8 +234,8 @@ export default function App() {
     if (doneKey === lastDone.current) return;
     lastDone.current = doneKey;
     if (!snap || !day.steps.length) return;
-    setDay({ steps: buildPlan({ day, snap, pace: st.pace, positions, walk, fromNow: true, rides: RIDES }) });
-  }, [doneKey, snap, day, st.pace, positions, walk, setDay]);
+    setDay({ steps: buildPlan({ day, snap, pace: st.pace, positions, walk, fromNow: true, rides: RIDES, me: geo.usable ? geo.fix!.p : null }) });
+  }, [doneKey, snap, day, st.pace, positions, walk, setDay, geo.usable, geo.fix]);
 
   const onTick = useCallback((id: number, e?: React.MouseEvent) => {
     const has = day.done.includes(id);
@@ -269,6 +288,10 @@ export default function App() {
         <div className="cell"><u>Étapes restantes</u><b className="mono">{restantes}</b></div>
         <div className="cell"><u>Attente moyenne</u><b className="mono">{avg !== null ? `${avg} min` : "—"}</b></div>
         <div className="cell"><u>Marche</u><b className="mono">{walk.ok ? "allées" : "estimée"}</b></div>
+        <div className="cell"><u>Position</u><b className="mono">
+          <span className={"dot " + (geo.usable ? "live" : geo.state === "off" ? "off" : "stale")} />
+          {geoLabel(geo.state)}{geo.usable && geo.fix ? ` · ±${Math.round(geo.fix.acc)} m` : ""}
+        </b></div>
         <div className="cell"><u>Groupe</u><b className="mono">
           {sync === "error" ? "hors ligne" : sync === "off" ? "local" : sync === "push" ? "envoi…" : sync === "pull" ? "lecture…" : "synchro"}
         </b></div>
@@ -353,7 +376,9 @@ export default function App() {
         <section className={"pane" + (tab === "go" ? " on" : "")}>
           <Parcours day={day} now={now} positions={positions} waits={waits} onTick={onTick}
             onSelect={onSelect} compute={compute} graphOk={walk.ok} osmCount={Object.keys(osm).length}
-            active={tab === "go"} planning={planning} onRemove={onRemove} onAdd={onAdd} />
+            active={tab === "go"} planning={planning} onRemove={onRemove} onAdd={onAdd}
+            me={geo.usable && geo.fix ? geo.fix.p : null} geoState={geo.state}
+            onGeo={geo.toggle} walk={walk} pace={st.pace} />
         </section>
       </div>
 

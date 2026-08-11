@@ -1,5 +1,5 @@
 import { BY_ID, ENTRANCE, type Ride } from "../data/rides";
-import { ENTRANCE_KEY, walkFromMatrix, type LatLng, type WalkMatrix } from "./geo";
+import { ENTRANCE_KEY, ME_KEY, walkFromMatrix, type LatLng, type WalkMatrix } from "./geo";
 import type { Snapshot } from "./api";
 
 export type Step =
@@ -75,6 +75,8 @@ type Opts = {
   walk: WalkMatrix;
   fromNow?: boolean;
   rides: Ride[];
+  /** Position réelle du groupe. Quand elle est connue, le recalcul part de là. */
+  me?: LatLng | null;
 };
 
 /**
@@ -87,7 +89,7 @@ type Opts = {
  * la cohérence de quartier, pour éviter de traverser le parc en diagonale ;
  * le placement des attractions aquatiques ; la répartition des sensations fortes.
  */
-export function buildPlan({ day, snap, pace, positions, walk, fromNow, rides }: Opts): Step[] {
+export function buildPlan({ day, snap, pace, positions, walk, fromNow, rides, me }: Opts): Step[] {
   const done = new Set(day.done);
   const gc = new Set(day.gc);
   const vlSet = new Set(day.vl);
@@ -98,8 +100,14 @@ export function buildPlan({ day, snap, pace, positions, walk, fromNow, rides }: 
 
   if (fromNow) {
     t = Math.max(t, clockMin());
-    const last = day.done.length ? BY_ID[day.done[day.done.length - 1]] : null;
-    if (last) { pos = positions(last); at = last.id; }
+    // Le GPS prime : on est peut-être déjà reparti depuis la dernière attraction cochée.
+    if (me && walk.m[ME_KEY]) {
+      pos = { ...me };
+      at = ME_KEY;
+    } else {
+      const last = day.done.length ? BY_ID[day.done[day.done.length - 1]] : null;
+      if (last) { pos = positions(last); at = last.id; }
+    }
   }
 
   const end = toMin(day.end);
@@ -112,7 +120,12 @@ export function buildPlan({ day, snap, pace, positions, walk, fromNow, rides }: 
   const left = day.sel.map((id) => BY_ID[id]).filter((r) => r && !done.has(r.id) && snap.rides[r.id]?.open !== false);
   const steps: Step[] = [];
   const vlWindow: Record<number, number> = {};
-  let zone = fromNow && day.done.length ? BY_ID[day.done[day.done.length - 1]]?.z ?? "" : "";
+  // Le quartier de départ amorce la prime de cohérence : sans lui, le premier
+  // saut peut traverser le parc alors qu'on a trois attractions sous les pieds.
+  let zone = fromNow
+    ? (me && walk.m[ME_KEY] ? nearestZone(me, positions, rides)
+       : day.done.length ? BY_ID[day.done[day.done.length - 1]]?.z ?? "" : "")
+    : "";
 
   const vlPending = day.vl.filter((id) => day.sel.includes(id) && !done.has(id));
   if (vlPending.length) {

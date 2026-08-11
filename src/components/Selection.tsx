@@ -5,7 +5,9 @@ import type { DayPlan, Lot } from "../lib/planner";
 import Section from "./Section";
 import { Check, Pass, Star, Lock } from "./icons";
 
-const waitClass = (w: number) => (w < 0 ? "closed" : w < 20 ? "go" : w <= 45 ? "mid" : "stop");
+/** Préfixe `w-` : `.stop` désigne déjà une étape d'itinéraire, la collision faisait
+ *  hériter les pastilles d'attente de la grille de la timeline. */
+const waitClass = (w: number) => (w < 0 ? "w-closed" : w < 20 ? "w-go" : w <= 45 ? "w-mid" : "w-stop");
 const waitLabel = (w: number) => (w < 0 ? "fermé" : `${w} min`);
 
 type Props = {
