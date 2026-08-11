@@ -151,6 +151,13 @@
                 </g>
               </g>
 
+              <!--
+                Wagon photo : une seule image détourée, posée sur la trajectoire.
+                Elle remplace tout le wagon dessiné dès que public/wagon.png existe.
+              -->
+              <image id="wagonphoto" x="-116" y="-136" width="232" height="156" visibility="hidden"
+                     preserveAspectRatio="xMidYMax meet"/>
+
               <!-- Photo réelle : cinq hublots ronds, remplis dès que les têtes existent. -->
               <g id="photos" visibility="hidden">
                 <image class="tete" data-i="1" x="-63" y="-57" width="22" height="22" clip-path="url(#t1)"/>
@@ -161,12 +168,14 @@
               </g>
 
               <!-- caisse par-dessus : les têtes dépassent, comme dans un vrai wagon -->
+              <g id="carrosserie">
               <path d="M-64,-30 h128 a10,10 0 0 1 10,10 v18 a12,12 0 0 1 -12,12 h-124 a12,12 0 0 1 -12,-12 v-18 a10,10 0 0 1 10,-10z" fill="#C24634"/>
               <path d="M-64,-30 h128 a10,10 0 0 1 10,10 v18 a12,12 0 0 1 -12,12 h-124 a12,12 0 0 1 -12,-12 v-18 a10,10 0 0 1 10,-10z" fill="none" stroke="#F6F1E7" stroke-width="3"/>
               <path d="M-58,-24 h116" stroke="#E3BA5A" stroke-width="4" stroke-linecap="round"/>
               <!-- roues -->
               <circle cx="-40" cy="14" r="9" fill="#241C14" stroke="#F6F1E7" stroke-width="3"/>
               <circle cx="40"  cy="14" r="9" fill="#241C14" stroke="#F6F1E7" stroke-width="3"/>
+              </g>
             </g>
             <animateMotion dur="2.3s" fill="freeze" rotate="auto" keyPoints="0;1"
                            keyTimes="0;1" calcMode="spline" keySplines="0.45 0 0.35 1">
@@ -185,8 +194,28 @@
       (function () {
         // La photo n'est posée que si elle existe : sinon le navigateur affiche
         // sa vignette d'image cassée en plein milieu du hublot.
-        var sonde = new Image();
-        sonde.onload = function () {
+        // Deux niveaux de personnalisation, du plus complet au plus simple.
+        // wagon.png remplace tout le véhicule ; à défaut, tetes/N.png remplace
+        // les visages ; à défaut encore, les passagers dessinés restent.
+        function essaye(url, onOk) {
+          var im = new Image();
+          im.onload = onOk;
+          im.src = url;
+        }
+
+        essaye("/wagon.png", function () {
+          var ph = document.getElementById("wagonphoto");
+          if (!ph) return;
+          ph.setAttribute("href", "/wagon.png");
+          ph.setAttribute("visibility", "visible");
+          ["equipage", "photos", "carrosserie"].forEach(function (id) {
+            var n = document.getElementById(id);
+            if (n) n.remove();
+          });
+        });
+
+        essaye("/tetes/1.png", function () {
+          if (document.getElementById("wagonphoto")?.getAttribute("visibility") === "visible") return;
           var vrai = document.getElementById("photos");
           var dessin = document.getElementById("equipage");
           if (!vrai) return;
@@ -195,8 +224,7 @@
           });
           vrai.setAttribute("visibility", "visible");
           if (dessin) dessin.remove();
-        };
-        sonde.src = "/tetes/1.png";
+        });
 
         // Ciel semé de façon stable : pas de scintillement synchrone.
         var sky = document.querySelector("#boot .sky");
