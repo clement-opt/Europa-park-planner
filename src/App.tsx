@@ -344,7 +344,8 @@ export default function App() {
                   Utile seulement si le serveur reste injoignable. Déployez <code>worker/queue-proxy.js</code>
                   sur Cloudflare et collez l'URL du Worker suivie de <code>/?url=</code>.
                 </p>
-                <input id="relay" type="text" placeholder="https://mon-worker.workers.dev/?url=" defaultValue={st.relay}
+                <input id="relay" type="text" aria-label="URL du relais personnel"
+                  placeholder="https://mon-worker.workers.dev/?url=" defaultValue={st.relay}
                   onBlur={(e) => { setSt((s) => ({ ...s, relay: e.target.value.trim() })); ping(true); }} />
               </details>
             </div>

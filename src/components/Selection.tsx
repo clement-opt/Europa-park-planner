@@ -181,8 +181,12 @@ export default function Selection({ day, setDay, waits, pace, setPace, toast, sp
         </div>
 
         <div className="row" style={{ display: "block", marginBottom: 0 }}>
-          <label className="f">Rythme de marche <span className="mono">{pace.toString().replace(".", ",")} km/h</span></label>
-          <input type="range" min={3} max={6} step={0.25} value={pace} onChange={(e) => setPace(Number(e.target.value))} />
+          <label className="f" htmlFor="pace">
+            Rythme de marche <span className="mono">{pace.toString().replace(".", ",")} km/h</span>
+          </label>
+          <input id="pace" type="range" min={3} max={6} step={0.25} value={pace}
+            aria-label={`Rythme de marche, ${pace} kilomètres par heure`}
+            onChange={(e) => setPace(Number(e.target.value))} />
         </div>
       </Section>
 
@@ -218,7 +222,7 @@ export default function Selection({ day, setDay, waits, pace, setPace, toast, sp
           faites se cochent encore.
         </p>
         <div className="row">
-          <input type="text" placeholder="Nom du lot" value={lotName}
+          <input type="text" placeholder="Nom du lot" value={lotName} aria-label="Nom du lot à enregistrer"
             onChange={(e) => setLotName(e.target.value)} style={{ flex: 1, minWidth: 160 }} />
           <button className="ghost" onClick={saveLot}>Enregistrer</button>
         </div>
