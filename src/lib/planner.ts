@@ -1,4 +1,4 @@
-import { BY_ID, ENTRANCE, type Ride } from "../data/rides";
+import { BY_ID, ENTRANCE, SNAPSHOT, type Ride } from "../data/rides";
 import { ENTRANCE_KEY, ME_KEY, walkFromMatrix, type LatLng, type WalkMatrix } from "./geo";
 import type { Snapshot } from "./api";
 
@@ -115,7 +115,26 @@ type Opts = {
  * la cohérence de quartier, pour éviter de traverser le parc en diagonale ;
  * le placement des attractions aquatiques ; la répartition des sensations fortes.
  */
-export function buildPlan({ day, snap, pace, positions, walk, fromNow, rides, me, prof }: Opts): Step[] {
+export function buildPlan({ day, snap: direct, pace, positions, walk, fromNow, rides, me, prof }: Opts): Step[] {
+  /**
+   * Préparer un parcours à l'avance, c'est le préparer pour un jour où le parc sera
+   * ouvert : l'état de l'instant ne dit rien de demain matin. Préparé le soir après
+   * la fermeture, un parcours ne contenait aucune attraction — toutes étaient
+   * fermées, donc toutes écartées, et l'app renvoyait une liste vide sans raison
+   * compréhensible. On repart alors des attentes de référence, et on ne garde le
+   * relevé en direct que là où il a quelque chose à dire.
+   *
+   * En cours de journée (`fromNow`), au contraire, une attraction fermée l'est
+   * vraiment : on continue de l'écarter.
+   */
+  const snap: Snapshot = fromNow ? direct : {
+    ...direct,
+    rides: Object.fromEntries(rides.map((r) => {
+      const s = direct.rides[r.id];
+      return [r.id, s?.open ? s : { wait: SNAPSHOT[r.id] ?? 20, open: true }];
+    }))
+  };
+
   const done = new Set(day.done);
   const gc = new Set(day.gc);
   const vlSet = new Set(day.vl);

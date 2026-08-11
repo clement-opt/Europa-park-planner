@@ -30,10 +30,11 @@ type Props = {
   pace: number;
   legs: LatLng[][];
   journeeFinie: boolean;
+  previsionnel: boolean;
   onProlonger: (heures: number) => void;
 };
 
-export default function Parcours({ day, now, positions, waits, onTick, onSelect, compute, graphOk, osmCount, active, planning, onRemove, onAdd, me, geoState, onGeo, walk, pace, legs, journeeFinie, onProlonger }: Props) {
+export default function Parcours({ day, now, positions, waits, onTick, onSelect, compute, graphOk, osmCount, active, planning, onRemove, onAdd, me, geoState, onGeo, walk, pace, legs, journeeFinie, previsionnel, onProlonger }: Props) {
   const [adding, setAdding] = useState(false);
   const [fiche, setFiche] = useState<number | null>(null);
   const done = new Set(day.done);
@@ -172,6 +173,14 @@ export default function Parcours({ day, now, positions, waits, onTick, onSelect,
           <div><b className="mono">{gagnees}</b><u>min gagnées</u></div>
         </div>
       </div>
+
+      {previsionnel && (
+        <div className="warn">
+          <b>Parc fermé en ce moment</b> : ce parcours est prévisionnel. Les attentes viennent
+          des valeurs de référence, pas du direct. Rouvrez-le sur place le jour venu et
+          appuyez sur « Recalculer à partir de maintenant » pour l'ajuster aux files réelles.
+        </div>
+      )}
 
       {journeeFinie && (
         <div className="warn">

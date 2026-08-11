@@ -534,7 +534,7 @@ export default function App() {
             active={tab === "go"} planning={planning} onRemove={onRemove} onAdd={onAdd}
             me={geo.usable && geo.fix ? geo.fix.p : null} geoState={geo.state}
             onGeo={geo.toggle} walk={walk} pace={st.pace} legs={legs}
-            journeeFinie={journeeFinie} onProlonger={prolonger} />
+            journeeFinie={journeeFinie} previsionnel={parcOuvert === false} onProlonger={prolonger} />
         </section>
       </div>
 

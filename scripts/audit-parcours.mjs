@@ -9,6 +9,7 @@
  * service worker, manifest, rendu hors ligne.
  */
 import { chromium } from "playwright";
+import { readFileSync } from "node:fs";
 const URL = process.env.URL ?? "http://127.0.0.1:4173/";
 const B = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome" });
 const bad = [];
@@ -99,6 +100,32 @@ for (const s of [{n:"390",w:390,h:844},{n:"430",w:430,h:932},{n:"820",w:820,h:11
   await p.locator(".stop .act.retirer").first().click(); await p.waitForTimeout(1500);
   const apresRetrait = await p.locator(".stop").count();
   if (avant && apresRetrait !== avant - 2) bad.push(`fin de journée : retrait ${apres}->${apresRetrait}, attendu ${avant-2}`);
+  await ctx.close();
+}
+
+/**
+ * Parc fermé. Préparer un parcours pour un autre jour ne doit pas dépendre de l'état
+ * d'ouverture de l'instant : le soir, toutes les attractions étant fermées, elles
+ * étaient toutes écartées et le calcul ne rendait rien.
+ */
+{
+  const bloc = readFileSync("src/data/rides.ts", "utf8").match(/export const SNAPSHOT[\s\S]*?\n};/)[0];
+  const ids = [...bloc.matchAll(/(\d{4,}):\s*\d+/g)].map((m) => Number(m[1]));
+  const ctx = await B.newContext({ viewport:{width:390,height:844} });
+  const p = await ctx.newPage();
+  await p.route(/rpc\/ep_waits/, (r) => r.fulfill({
+    status: 200, contentType: "application/json",
+    body: JSON.stringify({ at: new Date().toISOString(), vl: {},
+      rides: Object.fromEntries(ids.map((id) => [id, { wait: 0, open: false }])) })
+  }));
+  await p.goto(URL,{waitUntil:"load"}); await p.waitForTimeout(3600);
+  await p.getByRole("button",{name:/^Mix$/}).click(); await p.waitForTimeout(400);
+  await p.locator(".dock .cta, .pane button.cta").first().click(); await p.waitForTimeout(1800);
+  const n = await p.locator(".stop").count();
+  const avertit = await p.getByText(/Parc fermé en ce moment/).count();
+  ok.push(`parc fermé (${ids.length} attractions) : ${n} étapes préparées, avertissement ${avertit ? "affiché" : "absent"}`);
+  if (!n) bad.push("parc fermé : aucun parcours préparé alors qu'on planifie à l'avance");
+  if (!avertit) bad.push("parc fermé : parcours prévisionnel non signalé");
   await ctx.close();
 }
 

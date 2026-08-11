@@ -9,6 +9,31 @@ git le fait déjà. On y écrit ce que git ne dit pas — pourquoi, et où on s'
 
 ---
 
+## Session 18 — 11/08/2026 · Préparer un parcours quand le parc est fermé
+
+**On ne pouvait pas organiser sa journée le soir.** `buildPlan` écartait toute
+attraction dont le relevé disait « fermée », y compris quand on planifie à l'avance :
+après la fermeture, les 36 étaient écartées et le calcul rendait une liste vide, sans
+raison lisible. Or préparer un parcours pour demain, c'est le préparer pour un jour où
+le parc sera ouvert — l'état de l'instant n'en dit rien.
+
+Distinction posée : en cours de journée (`fromNow`) une attraction fermée l'est
+vraiment et reste écartée ; à l'avance, on repart des attentes de référence de
+`SNAPSHOT` pour celles que le direct dit fermées, et on garde le relevé réel pour les
+autres. Le parcours porte alors un bandeau qui dit qu'il est prévisionnel et invite à
+le recalculer sur place. Mesuré : **25 étapes préparées au lieu d'aucune**.
+
+**L'attraction d'ouverture était introuvable.** L'étoile qui l'impose ne vivait que sur
+la ligne de chaque attraction, sans autre indication qu'un `title` — invisible au doigt.
+Un réglage « Attraction d'ouverture » rejoint le bloc « La journée » : il affiche le
+choix courant, permet de le retirer, et dit où appuyer quand il n'y en a pas. Le bouton
+a désormais un nom accessible explicite.
+
+**Constaté**
+
+- Le test du parc fermé simule la réponse du serveur plutôt que d'attendre la nuit :
+  `page.route` sur `rpc/ep_waits` renvoie les 36 attractions fermées.
+
 ## Session 17 — 11/08/2026 · Valider une étape effaçait le parcours
 
 **Deux planificateurs qui ne parlaient pas de la même journée.** Le bouton principal

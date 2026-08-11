@@ -189,6 +189,29 @@ export default function Selection({ day, setDay, waits, pace, setPace, toast, sp
           </div>
         </div>
 
+        {/*
+          L'étoile qui impose la première attraction vivait uniquement sur la ligne de
+          chaque attraction, sans autre indication qu'un `title` — invisible au doigt.
+          On la rappelle ici, avec son état courant : c'est le seul réglage du jour qui
+          se pose ailleurs que dans ce bloc.
+        */}
+        <div className="row" style={{ display: "block" }}>
+          <label className="f">Attraction d'ouverture</label>
+          {day.first != null && BY_ID[day.first] ? (
+            <p className="note" style={{ marginTop: 0 }}>
+              Le parcours commencera par <b>{BY_ID[day.first].n}</b>, avant toute optimisation.{" "}
+              <button className="lien" onClick={() => setDay({ first: null, steps: [] })}>
+                Ne plus l'imposer
+              </button>
+            </p>
+          ) : (
+            <p className="note" style={{ marginTop: 0 }}>
+              Aucune : le parcours choisit lui-même par quoi commencer. Pour l'imposer, dépliez
+              un pays plus bas et appuyez sur l'étoile <b>★</b> de la ligne de l'attraction.
+            </p>
+          )}
+        </div>
+
         <div className="row" style={{ display: "block" }}>
           <label className="f">Grosses sensations</label>
           <div className="seg">
@@ -341,7 +364,8 @@ export default function Selection({ day, setDay, waits, pace, setPace, toast, sp
                       onClick={(e) => onGc(r.id, e)}><Pass /></button>
                     <button className="pill vl" aria-pressed={vl.has(r.id)} title="VirtualLine"
                       disabled={!sel.has(r.id) || !r.vl} onClick={() => onVl(r.id)}>VL</button>
-                    <button className="pill first" aria-pressed={day.first === r.id} title="Attraction d'ouverture"
+                    <button className="pill first" aria-pressed={day.first === r.id}
+                      aria-label={`Commencer la journée par ${r.n}`} title="Commencer la journée par cette attraction"
                       onClick={(e) => onFirst(r.id, e)}><Star /></button>
                     <button className="chk" style={{ marginLeft: "auto" }} aria-pressed={done.has(r.id)}
                       title="Déjà faite" onClick={(e) => onTick(r.id, e)}><Check /></button>
