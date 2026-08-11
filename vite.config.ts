@@ -20,20 +20,23 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["icon.svg"],
+      includeAssets: ["icon.svg", "apple-touch-icon.png"],
       manifest: {
-        name: "Europa-Park · Plan de route",
+        name: "Plan de route · Europa-Park",
+        // Le nom court est celui affiché sous l'icône sur l'écran d'accueil :
+        // au-delà de 12 caractères, Android et iOS le tronquent.
         short_name: "Plan de route",
         description: "Optimiseur de parcours Europa-Park avec Green Card et VirtualLine",
-        theme_color: "#0B0F17",
-        background_color: "#0B0F17",
+        theme_color: "#1F5C8B",
+        background_color: "#1F5C8B",
         display: "standalone",
         orientation: "portrait",
         start_url: "/",
         icons: [
-          { src: "icon-192.png", sizes: "192x192", type: "image/png" },
-          { src: "icon-512.png", sizes: "512x512", type: "image/png" },
-          { src: "icon-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" }
+          { src: "icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+          { src: "icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+          { src: "icon-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+          { src: "icon.svg", sizes: "any", type: "image/svg+xml" }
         ]
       },
       workbox: {

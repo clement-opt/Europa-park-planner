@@ -48,3 +48,10 @@ export function deviceName(): string {
   }
   return v;
 }
+
+/** Réseau piéton figé côté serveur, servi en une requête (~158 ko). */
+export async function fetchFootWays(): Promise<[number, number][][] | null> {
+  const { data, error } = await db.rpc("ep_foot_graph");
+  if (error) throw new Error(error.message);
+  return (data as [number, number][][]) ?? null;
+}

@@ -5,7 +5,7 @@ import { buildWalkMatrix, fetchFootGraph, fetchOsmPositions, type LatLng, type W
 import { buildPlan, clockMin, hhmm, type DayPlan } from "./lib/planner";
 import { downloadMarkdown, loadJournal, record, clearJournal } from "./lib/journal";
 import { copySelection, exportSelectionFile, load, merge, save, shareable, type AppState } from "./lib/storage";
-import { deviceName, pullState, pushState, stampState, type SyncState } from "./lib/sync";
+import { deviceName, fetchFootWays, pullState, pushState, stampState, type SyncState } from "./lib/sync";
 import Selection from "./components/Selection";
 import Parcours from "./components/Parcours";
 
@@ -93,7 +93,7 @@ export default function App() {
     // Le graphe des allées coûte un appel Overpass ; le repli à vol d'oiseau
     // est posé immédiatement pour que l'app soit utilisable sans attendre.
     setWalk(buildWalkMatrix(null, positions));
-    fetchFootGraph().then((g) => {
+    fetchFootGraph(fetchFootWays).then((g) => {
       if (!alive || !g) return;
       setWalk(buildWalkMatrix(g, positions));
     });

@@ -4,17 +4,121 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Plan de route" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="theme-color" content="#0B0F17" />
+    <meta name="theme-color" content="#1F5C8B" />
+    <meta name="description" content="Plan de route Europa-Park : itinéraire optimisé, Green Card et VirtualLine." />
     <link rel="icon" href="/icon.svg" />
-    <link rel="apple-touch-icon" href="/icon-192.png" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
-    <title>Europa-Park · Plan de route</title>
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <title>Plan de route · Europa-Park</title>
+
+    <!--
+      Écran de lancement inline : il s'affiche avant que le bundle et les polices
+      ne soient chargés, donc pas de webfont ici, uniquement des polices système.
+      main.tsx le retire une fois React monté.
+    -->
+    <style>
+      #boot {
+        position: fixed; inset: 0; z-index: 9999;
+        display: grid; place-items: center; gap: 0;
+        background: radial-gradient(120% 90% at 50% 34%, #2E7CB6 0%, #1F5C8B 52%, #122C42 100%);
+        color: #F6F1E7; text-align: center;
+        transition: opacity .45s ease, visibility .45s;
+        padding: 24px;
+      }
+      #boot.gone { opacity: 0; visibility: hidden; }
+      #boot .in { display: flex; flex-direction: column; align-items: center; }
+
+      #boot .ring { position: relative; width: 168px; height: 168px; margin-bottom: 26px; }
+      #boot .ring > svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+      #boot .ring .dash { animation: boot-spin 9s linear infinite; transform-origin: 50% 50%; }
+      /* L'emblème occupe la zone intérieure ; l'anneau est dessiné une seule fois. */
+      #boot .ring .mark { position: absolute; inset: 14%; width: 72%; height: 72%;
+        filter: drop-shadow(0 10px 22px rgba(0,0,0,.45)); }
+
+      #boot h1 {
+        margin: 0; font-family: Georgia, "Times New Roman", serif;
+        font-size: 34px; font-weight: 700; letter-spacing: -.01em;
+      }
+      #boot p {
+        margin: 8px 0 0; font-family: system-ui, -apple-system, sans-serif;
+        font-size: 15px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase;
+        color: #C99A2E;
+      }
+      #boot .say {
+        margin-top: 30px; min-height: 24px;
+        font-family: system-ui, -apple-system, sans-serif; font-size: 16px; color: #CFE0EE;
+        animation: boot-fade 2.4s ease-in-out infinite;
+      }
+
+      /* Les wagons qui montent la côte, en bas de l'écran. */
+      #boot .hill { position: absolute; left: 0; right: 0; bottom: 0; height: 120px; opacity: .5; }
+      #boot .cart { animation: boot-climb 3.6s cubic-bezier(.5,0,.5,1) infinite; }
+
+      @keyframes boot-spin  { to { transform: rotate(360deg); } }
+      @keyframes boot-fade  { 0%, 100% { opacity: .45; } 50% { opacity: 1; } }
+      @keyframes boot-climb { 0% { transform: translateX(-12%); } 100% { transform: translateX(112%); } }
+
+      @media (prefers-reduced-motion: reduce) {
+        #boot .dash, #boot .say, #boot .cart { animation: none; }
+      }
+    </style>
   </head>
   <body>
+    <div id="boot" role="status" aria-live="polite">
+      <div class="in">
+        <div class="ring">
+          <svg viewBox="0 0 100 100" aria-hidden="true">
+            <circle cx="50" cy="50" r="47" fill="none" stroke="#F6F1E7" stroke-width="2.5" opacity=".85" />
+            <circle class="dash" cx="50" cy="50" r="41" fill="none" stroke="#C99A2E"
+                    stroke-width="1.6" stroke-dasharray="7 6" opacity=".9" />
+          </svg>
+          <svg class="mark" viewBox="0 0 512 512" aria-hidden="true">
+            <circle cx="256" cy="256" r="168" fill="#F6F1E7"/>
+            <path d="M118 316c40-96 82-142 138-142s98 46 138 142" fill="none"
+                  stroke="#1F5C8B" stroke-width="20" stroke-linecap="round"/>
+            <path d="M118 316h276" stroke="#241C14" stroke-width="14" stroke-linecap="round"/>
+            <path d="M150 316v-26M200 316v-26M256 316v-26M312 316v-26M362 316v-26"
+                  stroke="#241C14" stroke-width="9" stroke-linecap="round"/>
+            <path d="M256 148l16 33 36 5-26 25 6 36-32-17-32 17 6-36-26-25 36-5z" fill="#C99A2E"/>
+          </svg>
+        </div>
+        <h1>Plan de route</h1>
+        <p>Europa-Park</p>
+        <div class="say">On graisse les rails…</div>
+      </div>
+
+      <svg class="hill" viewBox="0 0 400 120" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M0 108 Q100 24 200 60 T400 30" fill="none" stroke="#F6F1E7" stroke-width="3" stroke-linecap="round"/>
+        <g class="cart">
+          <rect x="0" y="46" width="26" height="15" rx="4" fill="#C99A2E"/>
+          <circle cx="7" cy="63" r="3.4" fill="#F6F1E7"/>
+          <circle cx="19" cy="63" r="3.4" fill="#F6F1E7"/>
+        </g>
+      </svg>
+    </div>
+
     <div id="root"></div>
+    <script>
+      // Quelques répliques, tirées au hasard, pour que l'attente ait l'air vivante.
+      (function () {
+        var lignes = [
+          "On graisse les rails…",
+          "On compte les jokers Green Card…",
+          "On mesure les allées du parc…",
+          "On interroge les files d'attente…",
+          "On ménage les estomacs…",
+          "On réserve les VirtualLine…",
+          "On cherche le chemin le plus court…"
+        ];
+        var el = document.querySelector("#boot .say");
+        var i = Math.floor(Math.random() * lignes.length);
+        if (el) {
+          el.textContent = lignes[i];
+          setInterval(function () { i = (i + 1) % lignes.length; el.textContent = lignes[i]; }, 2400);
+        }
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
