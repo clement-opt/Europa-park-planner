@@ -29,13 +29,22 @@ export type DayPlan = {
 
 export const emptyDay = (): DayPlan => ({
   sel: [], gc: [], vl: [], done: [], first: null, lots: [],
-  start: "09:00", end: "18:00", lunch: "12:30", lunchDur: 50, tol: 65,
+  // 20 h : heure de fermeture relevée sur place en août. Ce n'est pas une donnée
+  // d'API — les horaires du parc n'y figurent pas — mais un défaut de saison, que
+  // l'onglet Attractions permet de corriger et que la collecte sait recouper.
+  start: "09:00", end: "20:00", lunch: "12:30", lunchDur: 50, tol: 65,
   shape: { wet: "pm", vif: "front" },
   steps: []
 });
 
-/** Courbe de fréquentation type, utilisée pour projeter l'attente à une heure future. */
+/**
+ * Courbe de fréquentation par défaut, écrite à la main faute de mieux.
+ * `Profil` la remplace dès que la collecte a de quoi la mesurer.
+ */
 const CURVE: Record<number, number> = { 9: 0.45, 10: 0.7, 11: 0.9, 12: 1, 13: 1.05, 14: 1.1, 15: 1.05, 16: 0.95, 17: 0.78, 18: 0.5 };
+
+/** Facteurs mesurés : globaux, et par attraction quand elle en a assez. */
+export type Profil = { global: Record<string, number>; rides: Record<string, Record<string, number>> };
 
 export const toMin = (v: string) => { const [h, m] = v.split(":").map(Number); return h * 60 + m; };
 export const hhmm = (m: number) => {
@@ -44,17 +53,32 @@ export const hhmm = (m: number) => {
 };
 export const clockMin = (d = new Date()) => d.getHours() * 60 + d.getMinutes();
 
-function curveAt(mins: number) {
-  const h = mins / 60, a = Math.floor(h), b = a + 1;
-  const va = CURVE[Math.min(18, Math.max(9, a))] ?? 0.6;
-  const vb = CURVE[Math.min(18, Math.max(9, b))] ?? 0.6;
+/**
+ * Facteur d'affluence à une heure donnée, interpolé entre les deux heures pleines.
+ *
+ * Trois sources, de la plus précise à la plus grossière : le profil mesuré de
+ * l'attraction, le profil mesuré global, puis `CURVE`. Une attraction n'a de profil
+ * propre qu'après plusieurs jours de collecte — Silver Star et Voletarium n'ont pas
+ * la même forme de journée, et c'est justement ce qu'une courbe unique ne voit pas.
+ */
+function curveAt(mins: number, prof?: Profil, rideId?: number) {
+  const table = (rideId != null ? prof?.rides?.[String(rideId)] : undefined) ?? prof?.global;
+  const lire = (h: number) => {
+    const k = String(Math.min(23, Math.max(0, h)));
+    const v = table?.[k];
+    if (typeof v === "number") return v;
+    return CURVE[Math.min(18, Math.max(9, h))] ?? 0.6;
+  };
+  const h = mins / 60, a = Math.floor(h);
+  const va = lire(a), vb = lire(a + 1);
   return va + (vb - va) * (h - a);
 }
 
-export function projectedWait(snap: Snapshot, r: Ride, atMin: number): number {
+export function projectedWait(snap: Snapshot, r: Ride, atMin: number, prof?: Profil): number {
   const st = snap.rides[r.id];
   if (!st || !st.open) return -1;
-  const f = curveAt(atMin) / Math.max(0.3, curveAt(clockMin(new Date(snap.at))));
+  const maintenant = clockMin(new Date(snap.at));
+  const f = curveAt(atMin, prof, r.id) / Math.max(0.3, curveAt(maintenant, prof, r.id));
   return Math.max(0, Math.round(st.wait * Math.min(2, Math.max(0.35, f))));
 }
 
@@ -77,6 +101,8 @@ type Opts = {
   rides: Ride[];
   /** Position réelle du groupe. Quand elle est connue, le recalcul part de là. */
   me?: LatLng | null;
+  /** Profil d'affluence mesuré. Absent, on retombe sur la courbe écrite à la main. */
+  prof?: Profil;
 };
 
 /**
@@ -89,7 +115,7 @@ type Opts = {
  * la cohérence de quartier, pour éviter de traverser le parc en diagonale ;
  * le placement des attractions aquatiques ; la répartition des sensations fortes.
  */
-export function buildPlan({ day, snap, pace, positions, walk, fromNow, rides, me }: Opts): Step[] {
+export function buildPlan({ day, snap, pace, positions, walk, fromNow, rides, me, prof }: Opts): Step[] {
   const done = new Set(day.done);
   const gc = new Set(day.gc);
   const vlSet = new Set(day.vl);
@@ -133,11 +159,11 @@ export function buildPlan({ day, snap, pace, positions, walk, fromNow, rides, me
     steps.push({
       kind: "vl", at: t, dur: 3,
       name: "Réserver les VirtualLine dans l'app Europa-Park",
-      detail: list.map((r) => `${r.n} → retour vers ${hhmm(t + 3 + Math.max(30, projectedWait(snap, r, t)))}`).join(" · "),
+      detail: list.map((r) => `${r.n} → retour vers ${hhmm(t + 3 + Math.max(30, projectedWait(snap, r, t, prof)))}`).join(" · "),
       pos: { ...pos }
     });
     t += 3;
-    list.forEach((r) => (vlWindow[r.id] = t + Math.max(30, projectedWait(snap, r, t))));
+    list.forEach((r) => (vlWindow[r.id] = t + Math.max(30, projectedWait(snap, r, t, prof))));
   }
 
   /** Position relative dans la journée, de 0 à l'ouverture à 1 à la fermeture. */
@@ -170,8 +196,8 @@ export function buildPlan({ day, snap, pace, positions, walk, fromNow, rides, me
     const tw = walkFromMatrix(walk, at, forced.id, pace);
     let arrive = t + tw;
     if (vlSet.has(forced.id) && vlWindow[forced.id]) arrive = Math.max(arrive, vlWindow[forced.id]);
-    const w = gc.has(forced.id) ? 7 : vlSet.has(forced.id) && vlWindow[forced.id] ? 10 : Math.max(0, projectedWait(snap, forced, arrive));
-    const full = projectedWait(snap, forced, arrive);
+    const w = gc.has(forced.id) ? 7 : vlSet.has(forced.id) && vlWindow[forced.id] ? 10 : Math.max(0, projectedWait(snap, forced, arrive, prof));
+    const full = projectedWait(snap, forced, arrive, prof);
     steps.push({
       kind: "ride", ride: forced, walk: tw, arrive, wait: w,
       mode: gc.has(forced.id) ? "gc" : vlSet.has(forced.id) && vlWindow[forced.id] ? "vl" : "file",
@@ -205,7 +231,7 @@ export function buildPlan({ day, snap, pace, positions, walk, fromNow, rides, me
       let w: number, mode: "gc" | "vl" | "file";
       if (gc.has(r.id)) { w = 7; mode = "gc"; }
       else if (vlSet.has(r.id) && vlWindow[r.id]) { w = 10; mode = "vl"; }
-      else { w = projectedWait(snap, r, arrive); mode = "file"; if (w < 0) continue; }
+      else { w = projectedWait(snap, r, arrive, prof); mode = "file"; if (w < 0) continue; }
 
       const cost = arrive - t + w + r.dur;
       if (t + cost > end) continue;
@@ -214,7 +240,7 @@ export function buildPlan({ day, snap, pace, positions, walk, fromNow, rides, me
       const after = cooled + r.nau * 13;
       if (after > day.tol) continue;
 
-      const full = projectedWait(snap, r, arrive);
+      const full = projectedWait(snap, r, arrive, prof);
       const saved = Math.max(0, full - w);
 
       // Rester dans le quartier vaut mieux que gagner deux minutes de file ailleurs :

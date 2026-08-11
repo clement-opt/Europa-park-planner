@@ -6,7 +6,7 @@ import { useWalk } from "./lib/walkClient";
 import { buildPlan, clockMin, hhmm, toMin, type DayPlan } from "./lib/planner";
 import { downloadMarkdown, loadJournal, record, clearJournal } from "./lib/journal";
 import { copySelection, exportSelectionFile, load, merge, save, shareable, type AppState } from "./lib/storage";
-import { deviceName, fetchFootWays as footWaysFromServer, pullState, pushState, stampState, type SyncState } from "./lib/sync";
+import { deviceName, fetchFootWays as footWaysFromServer, fetchCourbe, fetchHoraires, pullState, pushState, stampState, type Courbe, type Horaire, type SyncState } from "./lib/sync";
 import Selection from "./components/Selection";
 import Parcours from "./components/Parcours";
 import Section from "./components/Section";
@@ -43,6 +43,8 @@ export default function App() {
   const [journalSize, setJournalSize] = useState(() => loadJournal().samples.length);
   const [sync, setSync] = useState<SyncState>("idle");
   const [planning, setPlanning] = useState(false);
+  const [horaires, setHoraires] = useState<Horaire[]>([]);
+  const [courbe, setCourbe] = useState<Courbe | null>(null);
 
   const relayRef = useRef(st.relay);
   const stampRef = useRef<string | null>(null);
@@ -74,6 +76,10 @@ export default function App() {
     const t = setInterval(() => ping(), 120000);
     return () => clearInterval(t);
   }, [ping]);
+
+  // Horaires observés : la seule mesure dont on dispose sur la fermeture réelle.
+  useEffect(() => { fetchHoraires().then(setHoraires).catch(() => {}); }, []);
+  useEffect(() => { fetchCourbe().then(setCourbe).catch(() => {}); }, []);
 
   /* ---- positions et allées ---- */
   useEffect(() => {
@@ -192,7 +198,7 @@ export default function App() {
     setPlanning(true);
     setTab("go");
     window.setTimeout(() => {
-      const steps = buildPlan({ day, snap, pace: st.pace, positions, walk, fromNow, rides: RIDES, me: geo.usable ? geo.fix!.p : null });
+      const steps = buildPlan({ day, snap, pace: st.pace, positions, walk, fromNow, rides: RIDES, me: geo.usable ? geo.fix!.p : null, prof: courbe ?? undefined });
       setDay({ steps });
       setPlanning(false);
       // Le recalcul renvoie en haut : sinon on reste au milieu de l'ancienne liste,
@@ -203,14 +209,14 @@ export default function App() {
       setToast(n ? `Parcours calculé · ${n} attraction${n > 1 ? "s" : ""}`
                  : "Aucune attraction ne rentre dans le temps restant");
     }, 420);
-  }, [snap, day, st.pace, positions, walk, setDay, geo.usable, geo.fix]);
+  }, [snap, day, st.pace, positions, walk, setDay, geo.usable, geo.fix, courbe]);
 
   /** Recalcul silencieux, après un ajout ou un retrait en cours de route. */
   const replan = useCallback((patch: Partial<DayPlan>) => {
     const next = { ...day, ...patch };
     if (!snap || !day.steps.length) return setDay(patch);
-    setDay({ ...patch, steps: buildPlan({ day: next, snap, pace: st.pace, positions, walk, fromNow: true, rides: RIDES, me: geo.usable ? geo.fix!.p : null }) });
-  }, [day, snap, st.pace, positions, walk, setDay, geo.usable, geo.fix]);
+    setDay({ ...patch, steps: buildPlan({ day: next, snap, pace: st.pace, positions, walk, fromNow: true, rides: RIDES, me: geo.usable ? geo.fix!.p : null, prof: courbe ?? undefined }) });
+  }, [day, snap, st.pace, positions, walk, setDay, geo.usable, geo.fix, courbe]);
 
   /** Repousse l'heure de fin, sans avoir à ouvrir les réglages. */
   const prolonger = useCallback((h: number) => {
@@ -245,8 +251,8 @@ export default function App() {
     if (doneKey === lastDone.current) return;
     lastDone.current = doneKey;
     if (!snap || !day.steps.length) return;
-    setDay({ steps: buildPlan({ day, snap, pace: st.pace, positions, walk, fromNow: true, rides: RIDES, me: geo.usable ? geo.fix!.p : null }) });
-  }, [doneKey, snap, day, st.pace, positions, walk, setDay, geo.usable, geo.fix]);
+    setDay({ steps: buildPlan({ day, snap, pace: st.pace, positions, walk, fromNow: true, rides: RIDES, me: geo.usable ? geo.fix!.p : null, prof: courbe ?? undefined }) });
+  }, [doneKey, snap, day, st.pace, positions, walk, setDay, geo.usable, geo.fix, courbe]);
 
   /**
    * Le tracé dessiné suit les mêmes allées que les temps de marche.
@@ -261,10 +267,16 @@ export default function App() {
     const restants = day.steps.filter((x): x is Extract<typeof x, { kind: "ride" }> =>
       x.kind === "ride" && !day.done.includes(x.ride.id));
     if (!restants.length) return route([]);
-    const depart = geo.usable && geo.fix ? geo.fix.p : ENTRANCE;
+    // Sans GPS, le tracé partait toujours de l'entrée du parc, même après cinq
+    // attractions faites : la carte montrait un trajet qu'on n'allait plus parcourir.
+    // À défaut de position réelle, la dernière attraction cochée est le point de départ.
+    const derniere = day.done.length ? BY_ID[day.done[day.done.length - 1]] : null;
+    const depart = geo.usable && geo.fix ? geo.fix.p
+      : derniere ? positions(derniere)
+      : ENTRANCE;
     route([depart, ...restants.map((x) => x.pos)]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stepKey, route, geo.usable, geo.fix, walk.ok]);
+  }, [stepKey, route, geo.usable, geo.fix, walk.ok, positions]);
 
   const onTick = useCallback((id: number, e?: React.MouseEvent) => {
     const has = day.done.includes(id);
@@ -336,6 +348,9 @@ export default function App() {
         <div className="cell"><u>Groupe</u><b className="mono">
           {sync === "error" ? "hors ligne" : sync === "off" ? "local" : sync === "push" ? "envoi…" : sync === "pull" ? "lecture…" : "synchro"}
         </b></div>
+        <div className="cell"><u>Prévision</u><b className="mono">
+          {courbe?.heures ? `${courbe.heures} h mesurées` : "estimée"}
+        </b></div>
         <div className="cell"><u>Relevés</u><b className="mono">{journalSize}</b></div>
       </div>
 
@@ -388,7 +403,8 @@ export default function App() {
           </div>
 
           <Selection day={day} setDay={setDay} waits={waits} pace={st.pace}
-            setPace={(v) => setSt((s) => ({ ...s, pace: v }))} toast={toast} sparkle={sparkle} />
+            setPace={(v) => setSt((s) => ({ ...s, pace: v }))} toast={toast} sparkle={sparkle}
+            horaires={horaires} />
 
           <Section title="Partage, export et journal" badge={st.shared ? "synchro" : "local"}>
             <p className="note" style={{ marginTop: 0 }}>

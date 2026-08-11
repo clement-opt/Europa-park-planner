@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { BY_ID, RIDES, tagsOf, zoneOf, type Ride } from "../data/rides";
 import { applyLot, newLot } from "../lib/storage";
 import type { DayPlan, Lot } from "../lib/planner";
+import type { Horaire } from "../lib/sync";
 import Section from "./Section";
 import { Check, Pass, Star, Lock } from "./icons";
 
@@ -18,9 +19,10 @@ type Props = {
   setPace: (v: number) => void;
   toast: (s: string) => void;
   sparkle: (x: number, y: number, c: string) => void;
+  horaires: Horaire[];
 };
 
-export default function Selection({ day, setDay, waits, pace, setPace, toast, sparkle }: Props) {
+export default function Selection({ day, setDay, waits, pace, setPace, toast, sparkle, horaires }: Props) {
   const [lotName, setLotName] = useState("");
   const [q, setQ] = useState("");
   // Les quartiers restent fermés tant qu'on ne les ouvre pas : un préréglage qui
@@ -139,6 +141,22 @@ export default function Selection({ day, setDay, waits, pace, setPace, toast, sp
             <input id="fin" type="time" value={day.end} onChange={(e) => setDay({ end: e.target.value })} />
           </div>
         </div>
+
+        {(() => {
+          // On ne propose une fermeture que si la collecte a continué après la
+          // dernière attraction ouverte : sinon on ne mesure que sa propre fin.
+          const h = horaires.find((x) => x.fermeture_observee);
+          if (!h || h.dernier_ouvert === day.end) return null;
+          return (
+            <p className="note" style={{ marginTop: -4, marginBottom: 14 }}>
+              Le {h.jour.split("-").reverse().slice(0, 2).join("/")}, les dernières attractions
+              étaient encore ouvertes à <b className="mono">{h.dernier_ouvert}</b>.{" "}
+              <button className="lien" onClick={() => setDay({ end: h.dernier_ouvert, steps: [] })}>
+                Utiliser cette heure de fin
+              </button>
+            </p>
+          );
+        })()}
         <div className="row">
           <div style={{ flex: 1, minWidth: 128 }}>
             <label className="f" htmlFor="dej">Déjeuner</label>

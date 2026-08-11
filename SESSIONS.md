@@ -9,6 +9,35 @@ git le fait déjà. On y écrit ce que git ne dit pas — pourquoi, et où on s'
 
 ---
 
+## Session 13 — 11/08/2026 · Horaires réels et parcours d'après l'historique
+
+**Fermeture à 20 h.** Information de terrain : le parc fermait à 20 h ce jour-là. Le défaut
+de fin de journée passe de 18 h à 20 h. Ce n'est **pas** une donnée d'API — les horaires du
+parc n'y figurent pas — mais un défaut de saison, corrigeable dans les réglages.
+
+Surtout, la collecte sait maintenant le recouper : `ep_horaires()` renvoie l'amplitude
+réellement observée par jour, et l'app propose l'heure mesurée sous le champ « Fin ».
+Le garde-fou compte : une fermeture n'est proposée que si **la collecte a continué après**
+la dernière attraction ouverte. Sinon on ne mesurerait que sa propre fin de créneau.
+
+**Parcours d'après l'historique.** `ep_courbe()` calcule le facteur d'affluence par heure,
+globalement et par attraction, depuis les relevés. `projectedWait` s'en sert par ordre de
+précision : profil de l'attraction, profil global, puis `CURVE` écrite à la main.
+
+Deux seuils, parce qu'une prédiction bâtie sur trois relevés est pire que l'heuristique
+qu'elle remplace : **20 relevés** pour retenir une heure, **4 heures couvertes** pour
+qu'une attraction ait son profil propre. Résultat aujourd'hui : le profil est **vide**, et
+c'est correct — une après-midi ne donne que ~12 relevés par tranche horaire. Il s'activera
+tout seul dès le deuxième jour de collecte. Le bandeau affiche `estimée` ou `N h mesurées`.
+
+**Le tracé repartait toujours de l'entrée du parc**, même après cinq attractions faites,
+quand le GPS était coupé. Il part maintenant de la dernière attraction cochée.
+
+**Vérifié** : fin par défaut à 20:00 ; l'indice d'horaires ne s'affiche pas quand la fin
+est déjà juste ; la carte se met bien à jour sur « Étape faite » (21 → 11 pastilles
+numérotées) ; avec un profil simulé de 11 h, l'indicateur bascule et les files projetées
+changent.
+
 ## Session 12 — 11/08/2026 · Trois bugs de fin de journée
 
 Signalés à 18 h 30 sur le terrain. Les deux derniers avaient la **même cause**.

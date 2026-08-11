@@ -756,3 +756,10 @@ details[open] > summary.mini::after { content: "▴"; }
   .stop, .strip .cell, .zone .ride { animation: none; }
   .stop.now .hh b { animation: none; }
 }
+
+/* Lien d'action dans un paragraphe : souligné, pas déguisé en bouton. */
+.lien {
+  font: inherit; font-weight: 800; color: var(--rail);
+  text-decoration: underline; text-underline-offset: 3px;
+  padding: 6px 2px; min-height: 40px;
+}

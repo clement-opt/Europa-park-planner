@@ -70,3 +70,38 @@ export async function fetchWaitsFromServer(): Promise<
     vl: data.vl ?? {}
   };
 }
+
+export type Horaire = {
+  jour: string;
+  premier_ouvert: string;
+  dernier_ouvert: string;
+  couvert_depuis: string;
+  couvert_jusqua: string;
+  fermeture_observee: boolean;
+  releves_ouverts: number;
+};
+
+/** Amplitude réellement observée par la collecte, jour par jour. */
+export async function fetchHoraires(): Promise<Horaire[]> {
+  const { data, error } = await db.rpc("ep_horaires");
+  if (error) throw new Error(error.message);
+  return (data as Horaire[]) ?? [];
+}
+
+export type Courbe = {
+  global: Record<string, number>;
+  rides: Record<string, Record<string, number>>;
+  releves: number;
+  heures: number;
+};
+
+/**
+ * Profil d'affluence observé. Le serveur renvoie des objets vides tant que la
+ * collecte est trop jeune : c'est voulu, une prédiction bâtie sur trois relevés
+ * serait pire que l'heuristique qu'elle remplace.
+ */
+export async function fetchCourbe(): Promise<Courbe | null> {
+  const { data, error } = await db.rpc("ep_courbe");
+  if (error) throw new Error(error.message);
+  return (data as Courbe) ?? null;
+}
