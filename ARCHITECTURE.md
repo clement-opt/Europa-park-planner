@@ -190,35 +190,74 @@ et les données disparaissent avec le `localStorage`.
 
 C'est le principal écart entre ce que l'app fait et ce qu'elle prétend estimer.
 
-## Collecte continue (non implémentée)
+## Collecte continue
 
-Dispositif visé pour remplacer `CURVE` par du réel, décrit ici pour ne pas le
-redécouvrir à chaque session.
+Opérationnelle depuis le 11/08/2026. Elle tourne **entièrement dans Postgres**, sur le
+projet Supabase « BDD CRM » (`vcezvyosrxoeewtmhttq`), dans un schéma isolé `europa_park`.
+
+Ni n8n ni Cloudflare : `pg_cron` était déjà actif sur le projet et l'extension `http`
+permet d'appeler l'API depuis une fonction SQL. Côté serveur il n'y a pas de contrainte
+CORS, donc pas besoin de relais.
 
 ```
-Schedule Trigger (5 min)
-  └── HTTP Request → https://queue-times.com/parks/51/queue_times.json
-        └── insertion en base : (ride_id, ts, wait, is_open)
+pg_cron  */5 6-21 * * * (UTC)
+  └── europa_park.collect()
+        └── http_get queue-times park 51, timeout 15 s
+              └── insert into europa_park.wait_sample
 ```
 
-Le Worker Cloudflare fait déjà la moitié du travail : il est côté serveur, donc **pas de
-contrainte CORS** et pas besoin de relais. Deux voies possibles :
+### Objets créés
 
-- **n8n** — Schedule Trigger + HTTP Request + insertion. Aucune contrainte CORS côté
-  serveur, l'appel se fait en direct sur queue-times.
-- **Cloudflare** — un Cron Trigger sur le Worker existant plus un stockage D1 ou KV.
-  Évite d'ajouter une infrastructure, mais impose d'étendre `queue-proxy.js`.
+| Objet | Rôle |
+| --- | --- |
+| `europa_park.ride` | attractions vues dans l'API, `is_virtual` pour les files virtuelles |
+| `europa_park.wait_sample` | série brute `(ride_id, observed_at, wait_minutes, is_open)` |
+| `europa_park.collection_run` | une ligne par exécution : statut HTTP, volumes, erreur |
+| `europa_park.hourly_profile` | vue, profil horaire par attraction |
+| `europa_park.curve` | vue, facteur d'affluence par heure — l'équivalent de `CURVE` |
+| `europa_park.collect()` | la fonction de collecte |
+| job pg_cron `europa_park_collect` | la planification |
 
-Volume attendu : 36 attractions × 12 relevés/heure × 12 h ≈ **5 200 lignes par jour**.
-Négligeable pour n'importe quel stockage.
+### Choix à connaître
 
-Exploitation : moyenner l'attente par attraction et par tranche horaire sur plusieurs
-jours, normaliser par la moyenne journalière, et remplacer `CURVE` par une courbe par
-attraction plutôt qu'une courbe globale. Silver Star et Voletarium n'ont pas le même
-profil horaire — c'est précisément ce que la courbe unique ne peut pas capturer.
+- **Schéma dédié.** Tout retirer tient en une commande, sans toucher au CRM :
+  `drop schema europa_park cascade; select cron.unschedule('europa_park_collect');`
+- **Clé primaire `(ride_id, observed_at)`** avec `observed_at` tronqué à la minute : une
+  double exécution du cron n'écrit pas de doublon. La collecte est idempotente.
+- **`wait_minutes` est `null` quand l'attraction est fermée**, jamais `0`. Zéro est une
+  vraie valeur d'attente ; les confondre fausserait toutes les moyennes.
+- **Agrégations en `Europe/Berlin`.** Le parc est en Allemagne ; agréger en UTC décalerait
+  les tranches horaires d'une ou deux heures selon la saison.
+- **Cadence 5 min**, alignée sur le rafraîchissement de queue-times. Plus souvent
+  n'ajouterait que des doublons.
+- **`collection_run` existe pour rendre l'échec visible.** Une collecte qui tombe en
+  silence produit une courbe fausse sans prévenir. `select * from
+  europa_park.collection_run order by id desc limit 20;` donne l'état réel.
+- **RLS activée sans policy** sur les trois tables : refus par défaut. Le schéma n'est de
+  toute façon pas exposé par PostgREST.
 
-Ce chantier n'a aucune dépendance sur le reste de l'app. `projectedWait` est le seul
-point d'entrée à modifier.
+Volume : 39 entrées × 12 relevés/heure × 15 h ≈ **7 000 lignes par jour**. Négligeable.
+
+### Ce que l'historique ne peut pas donner
+
+queue-times **n'expose pas d'historique intra-journée**. L'API publique renvoie l'instant
+présent, et l'endpoint d'agrégats ne donne que moyenne et maximum par attraction et par
+jour. Reconstituer a posteriori une courbe horaire du mois d'août est donc impossible
+depuis cette source. Seul un service tiers payant (Thrill Data Plus) publie des
+téléchargements historiques.
+
+Conséquence : la courbe se construit **à partir de maintenant**. C'est la raison d'être du
+cron, et la raison pour laquelle il a été posé sans attendre.
+
+### Exploitation
+
+`europa_park.curve` renvoie déjà un facteur par heure directement comparable à `CURVE`
+dans `planner.ts`. L'étape suivante est de passer à une courbe **par attraction** plutôt
+que globale : Silver Star et Voletarium n'ont pas le même profil horaire, et c'est
+exactement ce que la courbe unique ne peut pas capturer. `hourly_profile` porte déjà cette
+granularité.
+
+`projectedWait` est le seul point d'entrée à modifier dans l'app.
 
 ## Points d'attention repérés au review
 

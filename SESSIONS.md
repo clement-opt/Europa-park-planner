@@ -27,6 +27,10 @@ git le fait déjà. On y écrit ce que git ne dit pas — pourquoi, et où on s'
 - `scripts/check-api.mjs` : croise les 36 `id` et les 3 `vlId` du référentiel avec la
   réponse réelle de queue-times, signale les identifiants morts, les renommages et les
   files virtuelles non rattachées. Sort en code 1 si le référentiel est à corriger.
+- **Collecte continue en service.** Schéma `europa_park` sur le projet Supabase
+  « BDD CRM », alimenté toutes les 5 minutes par un job `pg_cron` de 06:00 à 21:00 UTC.
+  Première collecte réussie : HTTP 200, 39 attractions, 39 lignes. Détail et commandes de
+  suppression dans `ARCHITECTURE.md`.
 
 **Constaté**
 
@@ -50,32 +54,47 @@ git le fait déjà. On y écrit ce que git ne dit pas — pourquoi, et où on s'
   précisément le cas d'usage), les cibles tactiles font 20-26 px là où le minimum WCAG est
   24 et le confort 44, et les sept VirtualLine sont réservées d'un bloc à l'ouverture avec
   la même fenêtre de retour.
+- **Référentiel `rides.ts` confirmé exact contre l'API réelle.** Croisement fait depuis
+  Postgres : les 36 `id` et les 3 `vlId` existent tous, l'API ne renvoie rien d'autre
+  (36 + 3 = 39 entrées). Les trois files virtuelles pointent bien sur Voltron Nevera,
+  Poseidon et Voletarium. Zéro écart.
 - **Pas d'historique intra-journée chez queue-times.** L'API n'expose que l'instant présent
-  et des agrégats quotidiens (`get_daily_stats` : moyenne et max par attraction et par
-  jour). Reconstituer une courbe horaire d'août à partir de cette source est impossible.
+  et des agrégats quotidiens (moyenne et max par attraction et par jour). Reconstituer une
+  courbe horaire d'août a posteriori est impossible depuis cette source — seul Thrill Data
+  Plus, payant, publie des téléchargements historiques. La courbe se construit donc à
+  partir de maintenant, d'où la mise en service immédiate du cron.
 - Huit points d'attention au total, aucun bloquant, listés en fin d'`ARCHITECTURE.md`.
 
 **Non vérifié, et pourquoi**
 
 L'environnement d'exécution de cette session bloque tout l'egress hors GitHub et registres
-de paquets. `queue-times.com`, `overpass-api.de`, les tuiles, `api.vercel.com` et
-`api.cloudflare.com` répondent tous `403 CONNECT` au proxy. Conséquences :
+de paquets : `queue-times.com`, `overpass-api.de`, les tuiles, `api.vercel.com` et
+`api.cloudflare.com` répondent `403 CONNECT` au proxy.
 
-- les identifiants d'attractions de `rides.ts` **n'ont pas pu être croisés** avec la
-  réponse réelle de l'API. La cohérence interne est vérifiée, la correspondance externe non ;
-- le Worker Cloudflare n'a pas pu être déployé ni testé.
+Contourné pour l'API : la collecte tourne dans Postgres, donc l'appel part de Supabase et
+non de la session. C'est ce qui a permis de valider le référentiel malgré le blocage.
 
-Pour lever ce blocage : environnement Claude Code → **Network access: Custom** → ajouter
-`queue-times.com`, `overpass-api.de`, `*.workers.dev`, en gardant la liste par défaut
-cochée. Les variables et l'accès réseau sont lus **au démarrage de session** : il faut une
+Reste non testé :
+
+- le Worker Cloudflare, ni déployé ni testé — il demande de toute façon un compte
+  Cloudflare hors de portée de cette session ;
+- Overpass, donc l'appariement des positions réelles.
+
+Pour lever le blocage côté session : environnement Claude Code → **Network access:
+Custom** → ajouter `queue-times.com`, `overpass-api.de`, `*.workers.dev`, en gardant la
+liste par défaut cochée. L'accès réseau est lu **au démarrage de session** : il faut une
 session neuve.
 
 **Reste ouvert**
 
 - [ ] Déployer le Worker Cloudflare et coller son URL dans « relais personnel ».
       Tant que ce n'est pas fait, l'app tourne sur `SNAPSHOT` figé.
-- [ ] Croiser les 36 `id` et les 3 `vlId` avec la réponse réelle de queue-times.
-- [ ] Collecte continue pour remplacer `CURVE` par du réel.
+- [ ] Laisser la collecte tourner quelques jours, puis comparer `europa_park.curve` à
+      `CURVE` dans `planner.ts` et remplacer l'heuristique.
+- [ ] Passer à une courbe par attraction plutôt que globale (`hourly_profile`).
+- [ ] Précacher les polices dans le service worker — typographie dégradée hors ligne.
+- [ ] Agrandir les cibles tactiles du trèfle et de la case « faite » (20 px actuellement).
+- [ ] Confirmer auprès du parc si sept VirtualLine peuvent être réservées simultanément.
 - [ ] Découper `App.tsx` par onglet — 443 lignes, seuil de `CLAUDE.md` atteint.
 - [ ] Entrée anticipée de 45 min pour les résidents du resort, non modélisée.
 - [ ] Vérifier les durées de tour chronomètre en main, sur place.
