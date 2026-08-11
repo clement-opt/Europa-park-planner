@@ -9,6 +9,57 @@ git le fait déjà. On y écrit ce que git ne dit pas — pourquoi, et où on s'
 
 ---
 
+## Session 3 — 11/08/2026 · Refonte v2
+
+**Fait**
+
+- **Interface** : direction rétro parc d'attraction. Fraunces en titres, Figtree en lecture,
+  JetBrains Mono pour les heures, toutes auto-hébergées via npm — donc précachées par le
+  service worker, ce qui corrige la typographie dégradée hors ligne relevée en session 2.
+  Corps à 17px, plus rien sous 12,5px, cibles tactiles à 44px minimum.
+  Onglets en barre basse sur téléphone. Modes clair et sombre complets.
+  Couleur et drapeau par quartier sur les listes, la carte et les étapes.
+- **Parcours** : carte et itinéraire fusionnés. Affichage point par point, l'étape validée
+  disparaît et le reste est recalculé depuis l'heure et le lieu réels. Ajout et retrait
+  d'une attraction en cours de route. Attraction d'ouverture imposable. Forme de journée
+  (aquatiques matin/après-midi, sensations tôt/réparties/tard).
+- **Marche réelle** : graphe des allées OpenStreetMap, Dijkstra depuis chaque attraction,
+  repli à vol d'oiseau si Overpass ne répond pas. Prime de cohérence de quartier.
+- **Lots** d'attractions enregistrables et verrouillables.
+- **Sauvegarde partagée** entre téléphones par code de séjour, via trois fonctions RPC
+  étroites sur Supabase. Le schéma `europa_park` reste non exposé à PostgREST.
+- **Fiches** : les 36 attractions portent une description et un « petit plus ».
+- Recherche parmi les 36 attractions. `App.tsx` découpé en composants.
+
+**Constaté**
+
+- **Bug corrigé : la carte restait grise.** Leaflet mesure son conteneur au montage ;
+  monté dans un onglet masqué en CSS, il mesurait zéro. La taille est désormais recalculée
+  à chaque retour sur l'onglet.
+- **Aucune attraction ne manque.** Croisement refait contre l'API : queue-times n'expose
+  que 39 entrées pour le parc 51, soit nos 36 attractions plus 3 files virtuelles. Silver
+  Star est bien présente (id 5604, quartier France). Ce n'est pas un manque de données mais
+  un problème de repérage dans une liste de 36 groupée par pays, d'où la recherche ajoutée.
+  Les 3 attractions pour les tout-petits restent marquées `kid` et exclues des préréglages.
+- **La ré-optimisation dynamique fonctionne** : test navigateur, 38 étapes au calcul initial,
+  23 après validation d'une étape en milieu d'après-midi. Ce n'est pas un simple retrait,
+  c'est un recalcul complet sur le temps réellement restant.
+
+**Non testé**
+
+- Le graphe des allées : Overpass est bloqué depuis la session, le repli à vol d'oiseau est
+  seul exercé ici. À vérifier dans le navigateur, l'indicateur « Marche » du bandeau
+  affiche `allées` quand le graphe est chargé, `estimée` sinon.
+- La synchro entre téléphones : l'aller-retour RPC est validé côté serveur, mais pas depuis
+  le navigateur, le réseau de la session bloquant Supabase.
+
+**Reste ouvert**
+
+- [ ] Déployer le Worker Cloudflare (l'app tourne toujours sur `SNAPSHOT` figé sans lui).
+- [ ] Comparer `europa_park.curve` à `CURVE` une fois quelques jours collectés.
+- [ ] Confirmer auprès du parc si sept VirtualLine sont réservables simultanément.
+- [ ] Vérifier les durées de tour et les fiches attractions sur place.
+
 ## Session 2 — 11/08/2026 · Déploiement, review, documentation
 
 **Fait**
