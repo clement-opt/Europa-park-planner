@@ -9,6 +9,28 @@ git le fait déjà. On y écrit ce que git ne dit pas — pourquoi, et où on s'
 
 ---
 
+## Session 14 — 11/08/2026 · Le retour en haut ne couvrait qu'un chemin sur quatre
+
+Le retour en haut n'était posé que dans `compute`, donc sur « Calculer » et
+« Recalculer ». « Étape faite » passe par l'effet de ré-optimisation, « Retirer » et
+« Ajouter » par `replan` : **trois chemins sur quatre refaisaient le parcours sans jamais
+remonter**, laissant l'écran au milieu d'une liste dont les étapes avaient changé.
+
+Le défilement est extrait dans un `remonter()` unique, appelé par les quatre. Il ne
+s'applique **que dans l'onglet Parcours** : cocher une attraction depuis la liste des 36
+ne doit pas faire perdre sa place. Fenêtre et panneaux défilent tous les deux, puisque
+c'est la fenêtre qui porte le défilement sur téléphone et le panneau au-delà de 1180 px.
+
+Mesuré, départ à 1400 px dans tous les cas :
+
+| Action | Avant → après |
+| --- | --- |
+| Fait | 1400 → 0 |
+| Retirer | 1400 → 0 |
+| Recalculer | 1400 → 0 |
+| Ajouter | 1400 → 0 |
+| Onglet Attractions | reste en place |
+
 ## Session 13 — 11/08/2026 · Horaires réels et parcours d'après l'historique
 
 **Fermeture à 20 h.** Information de terrain : le parc fermait à 20 h ce jour-là. Le défaut

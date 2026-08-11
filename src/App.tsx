@@ -50,12 +50,14 @@ export default function App() {
   const stampRef = useRef<string | null>(null);
   const pushTimer = useRef<number | null>(null);
   const me = useRef(deviceName());
+  const tabRef = useRef(tab);
 
   const day = st.days[st.day];
   const toast = useCallback((s: string) => setToast(s), []);
   const setDay = useCallback((patch: Partial<DayPlan>) =>
     setSt((s) => ({ ...s, days: { ...s.days, [s.day]: { ...s.days[s.day], ...patch } } })), []);
 
+  useEffect(() => { tabRef.current = tab; }, [tab]);
   useEffect(() => { save(st); relayRef.current = st.relay; }, [st]);
   useEffect(() => { document.documentElement.setAttribute("data-theme", st.theme); }, [st.theme]);
   useEffect(() => { const t = setInterval(() => setNow(clockMin()), 20000); return () => clearInterval(t); }, []);
@@ -186,6 +188,20 @@ export default function App() {
   }, [snap]);
 
   /**
+   * Retour en haut après un changement de parcours.
+   *
+   * Ne s'applique que dans l'onglet Parcours : cocher une attraction depuis la liste
+   * ne doit pas faire perdre sa place dans les 36 lignes. La fenêtre et les panneaux
+   * défilent tous les deux — c'est la fenêtre sur téléphone, le panneau au-delà de
+   * 1180 px, et on ne sait pas lequel porte le défilement au moment de l'appel.
+   */
+  const remonter = useCallback(() => {
+    if (tabRef.current !== "go") return;
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    document.querySelectorAll(".pane").forEach((n) => n.scrollTo({ top: 0, behavior: "smooth" }));
+  }, []);
+
+  /**
    * Le calcul prend quelques millisecondes : sans marquage visible, on ne sait pas
    * si l'app a travaillé. On affiche l'état le temps d'une respiration.
    */
@@ -197,25 +213,24 @@ export default function App() {
     }
     setPlanning(true);
     setTab("go");
+    tabRef.current = "go";   // remonter() est appelé avant que l'effet n'ait tourné
     window.setTimeout(() => {
       const steps = buildPlan({ day, snap, pace: st.pace, positions, walk, fromNow, rides: RIDES, me: geo.usable ? geo.fix!.p : null, prof: courbe ?? undefined });
       setDay({ steps });
       setPlanning(false);
-      // Le recalcul renvoie en haut : sinon on reste au milieu de l'ancienne liste,
-      // sur des étapes qui ne sont plus les mêmes.
-      window.scrollTo({ top: 0, behavior: "smooth" });
-      document.querySelectorAll(".pane").forEach((n) => n.scrollTo({ top: 0, behavior: "smooth" }));
+      remonter();
       const n = steps.filter((x) => x.kind === "ride").length;
       setToast(n ? `Parcours calculé · ${n} attraction${n > 1 ? "s" : ""}`
                  : "Aucune attraction ne rentre dans le temps restant");
     }, 420);
-  }, [snap, day, st.pace, positions, walk, setDay, geo.usable, geo.fix, courbe]);
+  }, [snap, day, st.pace, positions, walk, setDay, geo.usable, geo.fix, courbe, remonter]);
 
   /** Recalcul silencieux, après un ajout ou un retrait en cours de route. */
   const replan = useCallback((patch: Partial<DayPlan>) => {
     const next = { ...day, ...patch };
     if (!snap || !day.steps.length) return setDay(patch);
     setDay({ ...patch, steps: buildPlan({ day: next, snap, pace: st.pace, positions, walk, fromNow: true, rides: RIDES, me: geo.usable ? geo.fix!.p : null, prof: courbe ?? undefined }) });
+    remonter();
   }, [day, snap, st.pace, positions, walk, setDay, geo.usable, geo.fix, courbe]);
 
   /** Repousse l'heure de fin, sans avoir à ouvrir les réglages. */
@@ -252,6 +267,7 @@ export default function App() {
     lastDone.current = doneKey;
     if (!snap || !day.steps.length) return;
     setDay({ steps: buildPlan({ day, snap, pace: st.pace, positions, walk, fromNow: true, rides: RIDES, me: geo.usable ? geo.fix!.p : null, prof: courbe ?? undefined }) });
+    remonter();
   }, [doneKey, snap, day, st.pace, positions, walk, setDay, geo.usable, geo.fix, courbe]);
 
   /**
