@@ -22,6 +22,11 @@ git le fait déjà. On y écrit ce que git ne dit pas — pourquoi, et où on s'
 - Rédaction de `ARCHITECTURE.md`, `DOCUMENTATION.md` et de ce journal, référencés depuis
   `CLAUDE.md`.
 - `tsconfig.tsbuildinfo` ajouté au `.gitignore` — point laissé ouvert en session 1.
+- Vérification PWA et responsive au navigateur réel (Chromium/Playwright) sur quatre
+  gabarits : 390, 820, 1180 et 1440 px. Captures dans le scratchpad de session.
+- `scripts/check-api.mjs` : croise les 36 `id` et les 3 `vlId` du référentiel avec la
+  réponse réelle de queue-times, signale les identifiants morts, les renommages et les
+  files virtuelles non rattachées. Sort en code 1 si le référentiel est à corriger.
 
 **Constaté**
 
@@ -35,8 +40,20 @@ git le fait déjà. On y écrit ce que git ne dit pas — pourquoi, et où on s'
 - **Le premier écran affichait « hors ligne » et « positions estimées ».** Les deux sont
   des replis normaux, pas des bugs : aucun relais personnel n'était configuré, et Overpass
   n'avait pas répondu au premier chargement.
-- Quatre points d'attention mineurs relevés au review, aucun bloquant, listés en fin
-  d'`ARCHITECTURE.md`.
+- **Responsive et PWA sains.** Aucun débordement horizontal aux quatre gabarits testés.
+  Service worker enregistré, manifest valide, 3 icônes, `display: standalone`. Un seul
+  point de rupture à 1080 px : en dessous, onglets et colonne unique ; au-dessus, les
+  onglets disparaissent et les trois panneaux passent en grille. C'est délibéré et ça
+  fonctionne. Safe-area insets et `prefers-reduced-motion` correctement pris en charge.
+- **Trois défauts réels trouvés au navigateur**, détaillés en fin d'`ARCHITECTURE.md` :
+  les polices Google ne sont pas précachées (typographie dégradée hors ligne, ce qui est
+  précisément le cas d'usage), les cibles tactiles font 20-26 px là où le minimum WCAG est
+  24 et le confort 44, et les sept VirtualLine sont réservées d'un bloc à l'ouverture avec
+  la même fenêtre de retour.
+- **Pas d'historique intra-journée chez queue-times.** L'API n'expose que l'instant présent
+  et des agrégats quotidiens (`get_daily_stats` : moyenne et max par attraction et par
+  jour). Reconstituer une courbe horaire d'août à partir de cette source est impossible.
+- Huit points d'attention au total, aucun bloquant, listés en fin d'`ARCHITECTURE.md`.
 
 **Non vérifié, et pourquoi**
 

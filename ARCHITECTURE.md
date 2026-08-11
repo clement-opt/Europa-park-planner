@@ -224,24 +224,44 @@ point d'entrée à modifier.
 
 Aucun n'est bloquant pour le séjour. Classés par ordre d'importance.
 
-1. **Les préréglages dépendent du premier relevé.** `preset("mix")` choisit les six
+1. **Sept VirtualLine réservées d'un coup à l'ouverture.** `buildPlan` pose toutes les
+   réservations dans une étape unique de 3 min en début de journée, et leur fenêtre de
+   retour se calcule identiquement — dans le plan de test, les sept renvoyaient toutes à
+   09 h 33. Les systèmes de file virtuelle limitent en général à **une réservation active
+   à la fois**. Si c'est le cas à Europa-Park, le plan est optimiste sur les sept
+   attractions concernées. Modifier cette règle demande une source, conformément à
+   `CLAUDE.md` — à vérifier dans les conditions officielles avant le séjour.
+
+2. **Les polices ne sont pas précachées.** `index.html` charge Archivo et IBM Plex
+   Mono depuis `fonts.googleapis.com`. Le `globPatterns` de workbox ne couvre que les
+   fichiers locaux et le `runtimeCaching` ne liste qu'Esri et OSM. Hors ligne, ou en 3G
+   dans le parc, les polices ne se chargent pas et la typographie retombe sur les polices
+   système. Vérifié : `0` occurrence de `fonts.g*` dans `vite.config.ts`. Les tuiles CARTO
+   (`basemaps.cartocdn.com`, fond « Sombre ») ne sont pas cachées non plus.
+
+3. **Cibles tactiles sous le seuil.** Mesuré au navigateur : `.chk` 20×20 px,
+   `.pill.gc` 24×20, `.pill.vl` 26×22, `.chk.tickbox` 20×20. Le minimum WCAG 2.2 est
+   24×24, la recommandation tactile courante 44×44. Or le trèfle et la case « faite » sont
+   les deux boutons les plus sollicités sur le terrain, à une main, en marchant.
+
+4. **Les préréglages dépendent du premier relevé.** `preset("mix")` choisit les six
    jokers en triant sur `waits`, qui vaut `-1` partout tant que `snap` est `null`. Cliquer
    un préréglage dans la seconde qui suit l'ouverture donne une liste sans aucun joker.
    En pratique le premier `ping()` répond avant, mais le cas existe.
 
-2. **Un relais personnel invalide est indiscernable.** La chaîne bascule sur les relais
+5. **Un relais personnel invalide est indiscernable.** La chaîne bascule sur les relais
    publics sans le signaler. Si l'indicateur affiche « live », rien ne dit lequel a répondu.
 
-3. **Le cache OSM n'expire jamais.** Un appariement partiel (8 attractions suffisent pour
+6. **Le cache OSM n'expire jamais.** Un appariement partiel (8 attractions suffisent pour
    être retenu) est figé définitivement dans `ep.osm.v1`. Vider cette clé est le seul
    moyen de relancer la recherche.
 
-4. **`hhmm` peut décaler d'une heure sur une entrée fractionnaire.** `Math.floor(m / 60)`
+7. **`hhmm` peut décaler d'une heure sur une entrée fractionnaire.** `Math.floor(m / 60)`
    utilise la valeur brute alors que les minutes sont arrondies : `599.6` rend `09:00` au
    lieu de `10:00`. Latent uniquement — toutes les valeurs qui atteignent `hhmm`
    aujourd'hui sont entières.
 
-5. **`App.tsx` fait 443 lignes.** Le seuil posé dans `CLAUDE.md` est atteint : découper
+8. **`App.tsx` fait 443 lignes.** Le seuil posé dans `CLAUDE.md` est atteint : découper
    par onglet avant d'ajouter une fonctionnalité.
 
 ## Contraintes de build
