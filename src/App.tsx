@@ -3,13 +3,14 @@ import { BY_ID, ENTRANCE, RIDES, type Ride } from "./data/rides";
 import { fetchWaits, type Snapshot } from "./lib/api";
 import { fetchFootWays, fetchOsmPositions, type LatLng } from "./lib/geo";
 import { useWalk } from "./lib/walkClient";
-import { buildPlan, clockMin, hhmm, toMin, type DayPlan } from "./lib/planner";
+import { buildPlan, clockMin, hhmm, toMin, type DayPlan, type Step } from "./lib/planner";
 import { downloadMarkdown, loadJournal, record, clearJournal } from "./lib/journal";
 import { copySelection, exportSelectionFile, load, merge, save, shareable, type AppState } from "./lib/storage";
 import { deviceName, fetchFootWays as footWaysFromServer, fetchCourbe, fetchHoraires, pullState, pushState, stampState, type Courbe, type Horaire, type SyncState } from "./lib/sync";
 import Selection from "./components/Selection";
 import Parcours from "./components/Parcours";
 import Section from "./components/Section";
+import BoutonDanger from "./components/BoutonDanger";
 import { geoLabel, usePosition } from "./lib/position";
 
 /** Petite gerbe d'étincelles à l'endroit du clic. */
@@ -125,8 +126,29 @@ export default function App() {
   }, [geo.usable, geo.fix, locate]);
 
   /* ---- sauvegarde partagée ---- */
+
+  /**
+   * Rien ne part sur le serveur tant qu'on n'a pas lu ce qui s'y trouve.
+   *
+   * La poussée est différée d'une seconde et demie, la lecture n'a aucun délai
+   * garanti : sur le réseau du parc, un téléphone qui démarre publiait son état local
+   * **avant** d'avoir vu celui des autres, et écrasait la sélection du groupe par la
+   * sienne. Un échec de lecture laisse ce drapeau à faux : on préfère ne rien publier
+   * plutôt que publier à l'aveugle.
+   */
+  const [pretSync, setPretSync] = useState(false);
+
+  /**
+   * Un état qui vient d'arriver du serveur n'a pas à y retourner. Sans ce garde-fou,
+   * la fusion déclenchait une poussée, qui changeait l'horodatage, que la sonde de
+   * l'autre téléphone voyait passer : les quatre appareils se renvoyaient la même
+   * sauvegarde toutes les quinze secondes, chaque aller-retour offrant une occasion
+   * d'écraser une modification faite entre-temps.
+   */
+  const venuDuServeur = useRef(false);
+
   useEffect(() => {
-    if (!st.shared) { setSync("off"); return; }
+    if (!st.shared) { setSync("off"); setPretSync(false); return; }
     let alive = true;
     (async () => {
       try {
@@ -134,10 +156,11 @@ export default function App() {
         const remote = await pullState(st.code);
         stampRef.current = await stampState(st.code);
         if (alive && remote && Object.keys(remote).length) {
+          venuDuServeur.current = true;
           setSt((s) => merge({ ...s, ...remote }));
           setToast("Sélection du groupe chargée");
         }
-        if (alive) setSync("idle");
+        if (alive) { setSync("idle"); setPretSync(true); }
       } catch {
         if (alive) setSync("error");
       }
@@ -147,7 +170,8 @@ export default function App() {
 
   // Poussée différée : on ne publie qu'une fois les clics retombés.
   useEffect(() => {
-    if (!st.shared) return;
+    if (!st.shared || !pretSync) return;
+    if (venuDuServeur.current) { venuDuServeur.current = false; return; }
     if (pushTimer.current) clearTimeout(pushTimer.current);
     pushTimer.current = window.setTimeout(async () => {
       try {
@@ -159,7 +183,7 @@ export default function App() {
       }
     }, 1500);
     return () => { if (pushTimer.current) clearTimeout(pushTimer.current); };
-  }, [st]);
+  }, [st, pretSync]);
 
   // Sonde : on ne retélécharge que si quelqu'un d'autre a écrit.
   useEffect(() => {
@@ -167,10 +191,18 @@ export default function App() {
     const t = setInterval(async () => {
       try {
         const s = await stampState(st.code);
+        // Une sonde qui répond vaut lecture réussie : elle rouvre la publication
+        // après un démarrage hors réseau, sinon les modifications faites entre-temps
+        // resteraient sur l'appareil sans jamais rejoindre le groupe.
+        setPretSync(true);
         if (s && s !== stampRef.current) {
           const remote = await pullState(st.code);
           stampRef.current = s;
-          if (remote) { setSt((x) => merge({ ...x, ...remote })); setToast("Mise à jour du groupe reçue"); }
+          if (remote) {
+            venuDuServeur.current = true;
+            setSt((x) => merge({ ...x, ...remote }));
+            setToast("Mise à jour du groupe reçue");
+          }
         }
       } catch { /* réseau capricieux dans le parc */ }
     }, 15000);
@@ -238,13 +270,44 @@ export default function App() {
     }, 420);
   }, [snap, day, st.pace, positions, walk, setDay, geo.usable, geo.fix, courbe, remonter]);
 
+  /**
+   * Une re-planification automatique ne doit jamais faire disparaître une attraction
+   * qu'on n'a pas faite.
+   *
+   * Le bouton principal planifie la journée entière depuis l'heure de début. Tout ce
+   * qui vient ensuite — valider une étape, en retirer, en ajouter — replanifie depuis
+   * l'heure **réelle**. Les deux ne parlent pas de la même journée : à 18 h, un plan
+   * de 34 attractions bâti pour la journée complète retombait à 8, et passé l'heure de
+   * fin il ne restait rien du tout. Cocher la première attraction en effaçait donc
+   * vingt-six d'un coup, alors qu'elles restaient à faire.
+   *
+   * Règle : on n'accepte le nouveau plan que s'il place au moins autant d'attractions
+   * qu'il en restait. C'est le cas courant en cours de journée, et les horaires s'y
+   * rafraîchissent. Sinon on garde l'ordre en place — l'étape cochée sort de
+   * l'affichage, le reste remonte — et le bouton « Mettre à jour » reste là pour
+   * demander explicitement un parcours calé sur le temps qui reste.
+   */
+  const replanifier = useCallback((next: DayPlan): Step[] => {
+    if (!snap) return next.steps;
+    const steps = buildPlan({ day: next, snap, pace: st.pace, positions, walk, fromNow: true, rides: RIDES, me: geo.usable ? geo.fix!.p : null, prof: courbe ?? undefined });
+    // Ce qui resterait à l'écran si l'on ne touchait à rien : ni fait, ni retiré.
+    const garde = next.steps.filter((s) => s.kind !== "ride" || next.sel.includes(s.ride.id));
+    const avant = garde.filter((s) => s.kind === "ride" && !next.done.includes(s.ride.id)).length;
+    const apres = steps.filter((s) => s.kind === "ride").length;
+    if (apres >= avant) return steps;
+    setToast(clockMin() >= toMin(next.end)
+      ? `Il est ${hhmm(clockMin())}, après votre fin de journée : parcours gardé en l'état.`
+      : `${avant - apres} attraction${avant - apres > 1 ? "s" : ""} n'entrent plus dans le temps restant : parcours gardé en l'état.`);
+    return garde;
+  }, [snap, st.pace, positions, walk, geo.usable, geo.fix, courbe]);
+
   /** Recalcul silencieux, après un ajout ou un retrait en cours de route. */
   const replan = useCallback((patch: Partial<DayPlan>) => {
     const next = { ...day, ...patch };
     if (!snap || !day.steps.length) return setDay(patch);
-    setDay({ ...patch, steps: buildPlan({ day: next, snap, pace: st.pace, positions, walk, fromNow: true, rides: RIDES, me: geo.usable ? geo.fix!.p : null, prof: courbe ?? undefined }) });
+    setDay({ ...patch, steps: replanifier(next) });
     remonter();
-  }, [day, snap, st.pace, positions, walk, setDay, geo.usable, geo.fix, courbe]);
+  }, [day, snap, setDay, replanifier, remonter]);
 
   /** Repousse l'heure de fin, sans avoir à ouvrir les réglages. */
   const prolonger = useCallback((h: number) => {
@@ -279,9 +342,9 @@ export default function App() {
     if (doneKey === lastDone.current) return;
     lastDone.current = doneKey;
     if (!snap || !day.steps.length) return;
-    setDay({ steps: buildPlan({ day, snap, pace: st.pace, positions, walk, fromNow: true, rides: RIDES, me: geo.usable ? geo.fix!.p : null, prof: courbe ?? undefined }) });
+    setDay({ steps: replanifier(day) });
     remonter();
-  }, [doneKey, snap, day, st.pace, positions, walk, setDay, geo.usable, geo.fix, courbe]);
+  }, [doneKey, snap, day, setDay, replanifier, remonter]);
 
   /**
    * Le tracé dessiné suit les mêmes allées que les temps de marche.
@@ -450,12 +513,17 @@ export default function App() {
               </button>
               <button className="ghost" onClick={() => exportSelectionFile(st)}>Exporter (.json)</button>
               <button className="ghost" onClick={downloadMarkdown}>Journal (.md)</button>
-              <button className="ghost" onClick={() => { clearJournal(); setJournalSize(0); setToast("Journal effacé"); }}>
-                Effacer le journal
-              </button>
-              <button className="ghost" onClick={() => setDay({ sel: [], gc: [], vl: [], done: [], first: null, steps: [] })}>
-                Réinitialiser le jour {st.day}
-              </button>
+              <BoutonDanger
+                label="Effacer le journal"
+                confirmation={`Confirmer : effacer ${journalSize} relevé${journalSize > 1 ? "s" : ""}`}
+                onConfirm={() => { clearJournal(); setJournalSize(0); setToast("Journal effacé"); }} />
+              <BoutonDanger
+                label={`Réinitialiser le jour ${st.day}`}
+                confirmation={`Confirmer : effacer les ${day.sel.length} attractions du jour ${st.day}`}
+                onConfirm={() => {
+                  setDay({ sel: [], gc: [], vl: [], done: [], first: null, steps: [] });
+                  setToast(`Jour ${st.day} réinitialisé`);
+                }} />
             </div>
           </Section>
         </section>

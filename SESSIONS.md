@@ -9,6 +9,45 @@ git le fait déjà. On y écrit ce que git ne dit pas — pourquoi, et où on s'
 
 ---
 
+## Session 17 — 11/08/2026 · Valider une étape effaçait le parcours
+
+**Deux planificateurs qui ne parlaient pas de la même journée.** Le bouton principal
+calcule la journée entière depuis l'heure de début ; tout ce qui vient ensuite —
+valider une étape, en retirer, en ajouter — replanifie depuis l'heure **réelle**.
+À 18 h, un plan de 34 attractions bâti pour la journée complète retombait à 8. Passé
+l'heure de fin, à zéro. Cocher la première attraction en effaçait donc vingt-six.
+
+`compute` avait bien le garde-fou — il refuse de recalculer passé l'heure de fin — mais
+les trois autres chemins ne l'avaient pas. Règle posée : **une replanification
+automatique n'accepte le nouveau plan que s'il place au moins autant d'attractions
+qu'il en restait.** C'est le cas courant en cours de journée, et les horaires s'y
+rafraîchissent ; sinon l'ordre est gardé, l'étape cochée sort de l'affichage, le reste
+remonte, et un message dit pourquoi. Le bouton « Mettre à jour » reste le moyen
+explicite d'obtenir un parcours calé sur le temps qui reste.
+
+**Deux défauts de la même famille, trouvés en cherchant.**
+
+- « Réinitialiser le jour » effaçait sélection, jokers, VirtualLine et parcours en un
+  seul tap, sans retour arrière. Passé à deux gestes via `BoutonDanger`, qui écrit la
+  question et ce qu'on perd sur le bouton lui-même, et se désarme après cinq secondes.
+  Même traitement pour « Effacer le journal ».
+- **La sauvegarde partagée pouvait écraser le groupe.** La poussée est différée d'une
+  seconde et demie, la lecture n'a aucun délai garanti : sur le réseau du parc, un
+  téléphone qui démarre publiait son état local avant d'avoir lu celui des autres.
+  Rien ne part plus tant qu'une lecture n'a pas abouti. Et un état reçu du serveur n'y
+  retourne plus : les quatre appareils se renvoyaient la même sauvegarde toutes les
+  quinze secondes, chaque aller-retour offrant une occasion de perdre une modification.
+
+**Constaté**
+
+- Le test « étape faite » de `audit-parcours.mjs` vérifiait « moins d'étapes qu'avant ».
+  Un parcours vidé d'un coup passait donc le test — c'est ce qui a laissé le défaut
+  vivre. Il vérifie maintenant l'égalité stricte, `n − 1`, et deux scénarios sont
+  ajoutés : validation après l'heure de fin avec horloge simulée, et double geste sur
+  les actions irréversibles.
+- La carte de bilan attribuait les attractions non placées aux fermetures et au plafond
+  de brassage, en oubliant la cause la plus fréquente : le temps qui manque.
+
 ## Session 16 — 11/08/2026 · La photo du wagon, enfin posée
 
 **La photo n'avait jamais été intégrée** : le mécanisme était prêt depuis la session 8,

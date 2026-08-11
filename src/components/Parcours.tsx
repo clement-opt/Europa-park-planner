@@ -227,7 +227,8 @@ export default function Parcours({ day, now, positions, waits, onTick, onSelect,
               <p className="note" style={{ marginTop: 0 }}>
                 {nonPlacees > 0
                   ? <>Le parcours s'arrête à <b>{hhmm(fin)}</b> : <b>{nonPlacees} attraction{nonPlacees > 1 ? "s" : ""}</b>{" "}
-                     n'ont pas pu être placées — fermées, ou écartées par le plafond de brassage.</>
+                     n'ont pas pu être placées — faute de temps avant votre heure de fin, ou parce
+                     qu'elles sont fermées ou écartées par le plafond de brassage.</>
                   : <>Toutes vos attractions sont placées. Le parcours s'arrête à <b>{hhmm(fin)}</b>{" "}
                      parce qu'il n'y a plus rien à faire, pas parce que le temps manque.</>}
                 {reste > 20 && <> Il reste <b>{Math.floor(reste / 60)} h {reste % 60} min</b> avant votre heure de fin.</>}
