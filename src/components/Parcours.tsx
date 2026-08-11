@@ -28,10 +28,12 @@ type Props = {
   onGeo: () => void;
   walk: WalkMatrix;
   pace: number;
+  legs: LatLng[][];
 };
 
-export default function Parcours({ day, now, positions, waits, onTick, onSelect, compute, graphOk, osmCount, active, planning, onRemove, onAdd, me, geoState, onGeo, walk, pace }: Props) {
+export default function Parcours({ day, now, positions, waits, onTick, onSelect, compute, graphOk, osmCount, active, planning, onRemove, onAdd, me, geoState, onGeo, walk, pace, legs }: Props) {
   const [adding, setAdding] = useState(false);
+  const [fiche, setFiche] = useState<number | null>(null);
   const done = new Set(day.done);
 
   // L'itinéraire ne montre que ce qui reste : une étape faite disparaît et
@@ -59,7 +61,43 @@ export default function Parcours({ day, now, positions, waits, onTick, onSelect,
   return (
     <>
       <ParkMap waits={waits} positions={positions} selected={new Set(day.sel)} gc={new Set(day.gc)}
-        done={done} steps={day.steps} onToggle={onSelect} active={active} me={me} />
+        done={done} steps={day.steps} onPick={setFiche} active={active} me={me} legs={legs} />
+
+      {fiche !== null && BY_ID[fiche] && (() => {
+        const r = BY_ID[fiche];
+        const dedans = day.sel.includes(r.id);
+        const w = waits[r.id];
+        return (
+          <div className="sheet" role="dialog" aria-modal="true" aria-label={r.n}
+            onClick={(e) => { if (e.target === e.currentTarget) setFiche(null); }}>
+            <div className="sheetcard" style={{ ["--zh" as string]: zoneOf(r.z).hue }}>
+              <div className="sheethead">
+                <div>
+                  <h4>{r.n}</h4>
+                  <small>{zoneOf(r.z).flag} {r.z} · {r.dur} min · brassage {r.nau}/5</small>
+                </div>
+                <span className={"wt mono " + (w < 0 ? "w-closed" : w < 20 ? "w-go" : w <= 45 ? "w-mid" : "w-stop")}>
+                  {w < 0 ? "fermé" : `${w} min`}
+                </span>
+              </div>
+              <p className="why">{r.why}</p>
+              <p className="plus">{r.plus}</p>
+              {me && walk.m[ME_KEY] && (
+                <p className="note" style={{ marginTop: 8 }}>
+                  À <b>{walkFromMatrix(walk, ME_KEY, r.id, pace)} min</b> à pied d'où vous êtes.
+                </p>
+              )}
+              <div className="row" style={{ marginTop: 14, marginBottom: 0 }}>
+                <button className="ghost" style={{ flex: 1 }}
+                  onClick={() => { dedans ? onRemove(r.id) : onAdd(r.id); setFiche(null); }}>
+                  {dedans ? "Retirer du parcours" : "Ajouter au parcours"}
+                </button>
+                <button className="ghost" onClick={() => setFiche(null)}>Fermer</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       <div className="row" style={{ marginTop: 12, marginBottom: 0 }}>
         <button className="ghost" style={{ flex: 1 }} aria-pressed={geoState === "on"} onClick={onGeo}>

@@ -617,3 +617,41 @@ details[open] > summary.mini::after { content: "▴"; }
 .pinmark.me { border-width: 3px; box-shadow: 0 0 0 0 rgba(46,124,182,.7); animation: me-ping 2.2s ease-out infinite; }
 @keyframes me-ping { 70% { box-shadow: 0 0 0 14px rgba(46,124,182,0); } 100% { box-shadow: 0 0 0 0 rgba(46,124,182,0); } }
 @media (prefers-reduced-motion: reduce) { .pinmark.me { animation: none; } }
+
+/* ---- fond de carte ---- */
+/*
+  Sur une image satellite brute, une pastille verte se perd dans les arbres et le
+  tracé bleu dans les toits. On assombrit et désature légèrement le fond : les
+  repères ressortent sans que la photo devienne illisible.
+*/
+.leafmap[data-layer="sat"] .leaflet-tile-pane { filter: saturate(.82) contrast(1.06) brightness(.78); }
+.leafmap[data-layer="plan"] .leaflet-tile-pane { filter: saturate(.75) brightness(.98); }
+[data-theme="dark"] .leafmap[data-layer="plan"] .leaflet-tile-pane { filter: saturate(.7) brightness(.82); }
+.leaflet-container { background: var(--surface-2); }
+.leaflet-control-attribution { font-size: 11px; background: rgba(255,255,255,.72) !important; }
+[data-theme="dark"] .leaflet-control-attribution { background: rgba(20,17,13,.72) !important; color: var(--ink-2); }
+[data-theme="dark"] .leaflet-control-attribution a { color: var(--ink-2); }
+
+/* ---- mini-fiche au clic sur une pastille ---- */
+.sheet {
+  position: fixed; inset: 0; z-index: 950; display: flex; align-items: flex-end; justify-content: center;
+  background: rgba(14, 36, 56, .5); backdrop-filter: blur(3px);
+  animation: sheet-bg .22s ease; padding: 0 0 env(safe-area-inset-bottom);
+}
+@media (min-width: 720px) { .sheet { align-items: center; padding: 24px; } }
+.sheetcard {
+  width: 100%; max-width: 560px; background: var(--surface);
+  border: 2px solid var(--line); border-top: 6px solid hsl(var(--zh) 52% 48%);
+  border-radius: var(--r) var(--r) 0 0; padding: 18px; box-shadow: var(--shadow-lg);
+  animation: sheet-up .28s cubic-bezier(.2,.8,.2,1);
+}
+@media (min-width: 720px) { .sheetcard { border-radius: var(--r); } }
+.sheethead { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 10px; }
+.sheethead h4 { font-family: var(--display); font-size: 20px; font-weight: 700; line-height: 1.2; }
+.sheethead small { display: block; font-size: 13.5px; color: var(--ink-3); font-weight: 600; margin-top: 3px; }
+.sheetcard .why { font-size: 15px; color: var(--ink-2); line-height: 1.45; }
+.sheetcard .plus { font-size: 15px; line-height: 1.45; margin-top: 6px; font-weight: 600; color: hsl(var(--zh) 48% 34%); }
+[data-theme="dark"] .sheetcard .plus { color: hsl(var(--zh) 62% 70%); }
+@keyframes sheet-bg { from { opacity: 0; } }
+@keyframes sheet-up { from { transform: translateY(26px); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .sheet, .sheetcard { animation: none; } }

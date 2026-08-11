@@ -111,6 +111,69 @@ export function dijkstra(g: Graph, from: number): Float64Array {
   return dist;
 }
 
+/**
+ * Dijkstra avec mémoire du prédécesseur, pour pouvoir rejouer le chemin.
+ * Séparé de la version rapide : garder les prédécesseurs coûte un tableau de plus,
+ * inutile quand on ne veut que des distances.
+ */
+export function dijkstraFrom(g: Graph, from: number): { dist: Float64Array; prev: Int32Array } {
+  const dist = new Float64Array(g.pts.length).fill(Infinity);
+  const prev = new Int32Array(g.pts.length).fill(-1);
+  dist[from] = 0;
+  const heap: number[] = [from];
+  const hd: number[] = [0];
+
+  const swap = (i: number, j: number) => {
+    [heap[i], heap[j]] = [heap[j], heap[i]];
+    [hd[i], hd[j]] = [hd[j], hd[i]];
+  };
+  const up = (i: number) => { while (i > 0) { const p = (i - 1) >> 1; if (hd[p] <= hd[i]) break; swap(p, i); i = p; } };
+  const down = (i: number) => {
+    for (;;) {
+      const l = 2 * i + 1, r = l + 1;
+      let m = i;
+      if (l < hd.length && hd[l] < hd[m]) m = l;
+      if (r < hd.length && hd[r] < hd[m]) m = r;
+      if (m === i) break;
+      swap(m, i); i = m;
+    }
+  };
+
+  while (heap.length) {
+    const u = heap[0], du = hd[0];
+    swap(0, heap.length - 1); heap.pop(); hd.pop(); down(0);
+    if (du > dist[u]) continue;
+    for (const e of g.adj[u]) {
+      const nd = du + e.d;
+      if (nd < dist[e.to]) {
+        dist[e.to] = nd; prev[e.to] = u;
+        heap.push(e.to); hd.push(nd); up(heap.length - 1);
+      }
+    }
+  }
+  return { dist, prev };
+}
+
+/**
+ * Le tracé réel entre deux points, allée par allée.
+ *
+ * Sans lui, la carte reliait les étapes par des segments droits : le trait passait
+ * à travers le lac et les bâtiments, alors que les temps de marche, eux, suivaient
+ * déjà les allées. Le dessin contredisait le calcul.
+ */
+export function pathBetween(g: Graph | null, a: LatLng, b: LatLng): LatLng[] {
+  if (!g) return [a, b];
+  const ia = nearest(g, a);
+  const ib = nearest(g, b);
+  const { dist, prev } = dijkstraFrom(g, ia);
+  if (!Number.isFinite(dist[ib])) return [a, b];
+
+  const out: LatLng[] = [];
+  for (let u = ib; u !== -1; u = prev[u]) out.push(g.pts[u]);
+  out.reverse();
+  return [a, ...out, b];
+}
+
 export type Matrix = Record<number, Record<number, number>>;
 
 /** Distances réelles entre tous les points nommés. Un Dijkstra par point. */

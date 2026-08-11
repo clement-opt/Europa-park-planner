@@ -7,21 +7,27 @@ import type { Step } from "../lib/planner";
 
 type Layer = "sat" | "plan" | "dark";
 
-const TILES: Record<Layer, { url: string; attr: string; max: number }> = {
+/**
+ * `maxNative` est la profondeur réellement servie par le fournisseur ; au-delà,
+ * Leaflet agrandit la dernière tuile au lieu d'en demander une qui n'existe pas.
+ * Sans ça, le satellite renvoyait des tuiles manquantes en zoom rapproché — c'est
+ * ce qui donnait ces trous gris dans le parc.
+ */
+const TILES: Record<Layer, { url: string; attr: string; max: number; maxNative: number }> = {
   sat: {
     url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
     attr: "Imagerie Esri, Maxar, Earthstar Geographics",
-    max: 19
+    max: 21, maxNative: 19
   },
   plan: {
     url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
     attr: "© OpenStreetMap",
-    max: 19
+    max: 20, maxNative: 19
   },
   dark: {
     url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
     attr: "© OpenStreetMap, © CARTO",
-    max: 20
+    max: 21, maxNative: 20
   }
 };
 
@@ -35,9 +41,10 @@ export default function ParkMap(props: {
   gc: Set<number>;
   done: Set<number>;
   steps: Step[];
-  onToggle: (id: number) => void;
+  onPick: (id: number) => void;
   active: boolean;
   me: LatLng | null;
+  legs: LatLng[][];
 }) {
   const box = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
@@ -74,8 +81,13 @@ export default function ParkMap(props: {
     if (!m) return;
     if (tiles.current) tiles.current.remove();
     const t = TILES[layer];
-    tiles.current = L.tileLayer(t.url, { attribution: t.attr, maxZoom: t.max }).addTo(m);
+    tiles.current = L.tileLayer(t.url, {
+      attribution: t.attr, maxZoom: t.max, maxNativeZoom: t.maxNative, detectRetina: true
+    }).addTo(m);
     tiles.current.bringToBack();
+    // Le fond est assombri et désaturé pour que les pastilles et le tracé ressortent :
+    // sur une image satellite brute, un point vert se perd dans les arbres.
+    box.current?.setAttribute("data-layer", layer);
   }, [layer]);
 
   useEffect(() => {
@@ -87,13 +99,19 @@ export default function ParkMap(props: {
     const routed = props.steps.filter((s): s is Extract<Step, { kind: "ride" }> => s.kind === "ride" && !props.done.has(s.ride.id));
     routed.forEach((s, i) => order.set(s.ride.id, i + 1));
 
-    if (routed.length) {
-      const pts: L.LatLngExpression[] = [
-        [ENTRANCE.lat, ENTRANCE.lng],
-        ...routed.map((s) => [s.pos.lat, s.pos.lng] as L.LatLngExpression)
-      ];
-      L.polyline(pts, { color: "#4d87e0", weight: 4, opacity: .95, dashArray: "9 8", lineCap: "round" }).addTo(g);
-      L.polyline(pts, { color: "#4d87e0", weight: 12, opacity: .16, lineCap: "round" }).addTo(g);
+    // Le tracé suit les allées quand le graphe a répondu ; sinon on relie les
+    // étapes en droite, en le montrant par un pointillé plus lâche.
+    const suitLesAllees = props.legs.length > 0;
+    const traces: L.LatLngExpression[][] = suitLesAllees
+      ? props.legs.map((leg) => leg.map((p) => [p.lat, p.lng] as L.LatLngExpression))
+      : routed.length
+        ? [[[ENTRANCE.lat, ENTRANCE.lng], ...routed.map((s) => [s.pos.lat, s.pos.lng] as L.LatLngExpression)]]
+        : [];
+
+    for (const t of traces) {
+      L.polyline(t, { color: "#0E2438", weight: 11, opacity: .3, lineCap: "round", lineJoin: "round" }).addTo(g);
+      L.polyline(t, { color: "#5FA8DC", weight: 5, opacity: .98, lineCap: "round", lineJoin: "round",
+        dashArray: suitLesAllees ? undefined : "10 9" }).addTo(g);
     }
 
     if (props.me) {
@@ -137,10 +155,10 @@ export default function ParkMap(props: {
         })
       })
         .bindTooltip(`${r.n} · ${w < 0 ? "fermé" : w + " min"}`, { direction: "top" })
-        .on("click", () => props.onToggle(r.id))
+        .on("click", () => props.onPick(r.id))
         .addTo(g);
     }
-  }, [props.waits, props.selected, props.gc, props.done, props.steps, props.positions, props.me]);
+  }, [props.waits, props.selected, props.gc, props.done, props.steps, props.positions, props.me, props.legs]);
 
   return (
     <div className="mapwrap">

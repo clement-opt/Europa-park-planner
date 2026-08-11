@@ -9,6 +9,29 @@ git le fait déjà. On y écrit ce que git ne dit pas — pourquoi, et où on s'
 
 ---
 
+## Session 7 — 11/08/2026 · Carte : tracé réel, mini-fiche, lisibilité
+
+**Fait**
+
+- **Le tracé sur la carte suit désormais les allées.** Il reliait les étapes par des
+  segments droits qui traversaient le lac et les bâtiments, alors que les temps de marche,
+  eux, suivaient déjà le graphe : le dessin contredisait le calcul. `pathBetween` rejoue
+  le chemin nœud par nœud grâce à un Dijkstra qui garde les prédécesseurs, et le worker
+  renvoie une polyligne par segment. Repli en droite, marqué par un pointillé plus lâche,
+  quand le graphe n'a pas répondu.
+- **Mini-fiche au clic sur une pastille.** Un clic sélectionnait silencieusement
+  l'attraction, ce qui n'était ni visible ni réversible d'un geste. Il ouvre maintenant une
+  fiche : nom, quartier, durée, brassage, attente, description, le petit plus, la distance
+  à pied depuis votre position, et un bouton ajouter ou retirer.
+- **Lisibilité du satellite.** `maxNativeZoom` à 19 : au-delà Leaflet agrandit la dernière
+  tuile au lieu d'en demander une inexistante, ce qui produisait des trous gris en zoom
+  rapproché. Le fond est légèrement assombri et désaturé par filtre CSS — sur une image
+  satellite brute, une pastille verte se perd dans les arbres et le tracé bleu dans les
+  toits. Tracé redessiné avec liseré sombre et trait plus épais.
+
+**Vérifié au navigateur** : 19 segments tracés, mini-fiche ouverte au clic avec le bon
+contenu, fermeture propre, aucune erreur console.
+
 ## Session 6 — 11/08/2026 · Calcul de marche en Web Worker
 
 **Fait**

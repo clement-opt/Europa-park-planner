@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ME_KEY, parkNodes, roughMatrix, type WalkMatrix } from "./geo";
-import { buildMatrix, graphFromWays, rowFrom, type Graph, type LatLng, type Matrix, type Node, type Ways } from "./walkgraph";
+import { buildMatrix, graphFromWays, pathBetween, rowFrom, type Graph, type LatLng, type Matrix, type Node, type Ways } from "./walkgraph";
 import type { WalkOut } from "./walk.worker";
 import type { Ride } from "../data/rides";
 
@@ -15,6 +15,7 @@ import type { Ride } from "../data/rides";
 export function useWalk(positions: (r: Ride) => LatLng) {
   const [walk, setWalk] = useState<WalkMatrix>(() => roughMatrix(parkNodes(positions)));
   const [ready, setReady] = useState(false);
+  const [legs, setLegs] = useState<LatLng[][]>([]);
 
   const worker = useRef<Worker | null>(null);
   const fallback = useRef<Graph | null>(null);
@@ -41,6 +42,7 @@ export function useWalk(positions: (r: Ride) => LatLng) {
         setWalk(next);
         setReady(true);
       }
+      if (msg.type === "path") { setLegs(msg.legs); return; }
       if (msg.type === "row") {
         // On repart toujours de la matrice de base : sinon les lignes « moi »
         // successives s'empileraient et la matrice grossirait sans fin.
@@ -95,5 +97,17 @@ export function useWalk(positions: (r: Ride) => LatLng) {
     setWalk({ m, ok: b.ok });
   }, []);
 
-  return { walk, ready, load, locate, threaded: !!worker.current };
+  /** Demande le tracé réel qui relie les étapes, allée par allée. */
+  const route = useCallback((pts: LatLng[]) => {
+    if (pts.length < 2) return setLegs([]);
+    if (worker.current) {
+      worker.current.postMessage({ type: "route", pts });
+      return;
+    }
+    const out: LatLng[][] = [];
+    for (let i = 1; i < pts.length; i++) out.push(pathBetween(fallback.current, pts[i - 1], pts[i]));
+    setLegs(out);
+  }, []);
+
+  return { walk, ready, load, locate, route, legs, threaded: !!worker.current };
 }

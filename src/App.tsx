@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BY_ID, RIDES, type Ride } from "./data/rides";
+import { BY_ID, ENTRANCE, RIDES, type Ride } from "./data/rides";
 import { fetchWaits, type Snapshot } from "./lib/api";
 import { fetchFootWays, fetchOsmPositions, type LatLng } from "./lib/geo";
 import { useWalk } from "./lib/walkClient";
@@ -93,7 +93,7 @@ export default function App() {
 
   // Les temps de marche sont calculés dans un Web Worker : 37 Dijkstra sur
   // 7 500 nœuds bloquaient l'interface le temps du calcul sur un téléphone.
-  const { walk, load: loadWays, locate, threaded } = useWalk(positions);
+  const { walk, load: loadWays, locate, route, legs, threaded } = useWalk(positions);
 
   useEffect(() => {
     let alive = true;
@@ -232,6 +232,18 @@ export default function App() {
     if (!snap || !day.steps.length) return;
     setDay({ steps: buildPlan({ day, snap, pace: st.pace, positions, walk, fromNow: true, rides: RIDES, me: geo.usable ? geo.fix!.p : null }) });
   }, [doneKey, snap, day, st.pace, positions, walk, setDay, geo.usable, geo.fix]);
+
+  // Le tracé dessiné suit les mêmes allées que les temps de marche : on le
+  // redemande à chaque changement d'itinéraire ou de position de départ.
+  const stepKey = day.steps.map((x) => (x.kind === "ride" ? x.ride.id : "")).join(",") + "|" + day.done.join(",");
+  useEffect(() => {
+    const restants = day.steps.filter((x): x is Extract<typeof x, { kind: "ride" }> =>
+      x.kind === "ride" && !day.done.includes(x.ride.id));
+    if (!restants.length) return route([]);
+    const depart = geo.usable && geo.fix ? geo.fix.p : ENTRANCE;
+    route([depart, ...restants.map((x) => x.pos)]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stepKey, route, geo.usable, geo.fix]);
 
   const onTick = useCallback((id: number, e?: React.MouseEvent) => {
     const has = day.done.includes(id);
@@ -374,7 +386,7 @@ export default function App() {
             onSelect={onSelect} compute={compute} graphOk={walk.ok} osmCount={Object.keys(osm).length}
             active={tab === "go"} planning={planning} onRemove={onRemove} onAdd={onAdd}
             me={geo.usable && geo.fix ? geo.fix.p : null} geoState={geo.state}
-            onGeo={geo.toggle} walk={walk} pace={st.pace} />
+            onGeo={geo.toggle} walk={walk} pace={st.pace} legs={legs} />
         </section>
       </div>
 
