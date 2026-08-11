@@ -9,6 +9,34 @@ git le fait déjà. On y écrit ce que git ne dit pas — pourquoi, et où on s'
 
 ---
 
+## Session 6 — 11/08/2026 · Calcul de marche en Web Worker
+
+**Fait**
+
+- Les 37 Dijkstra sur 7 500 nœuds passent dans un **Web Worker**. Le fil principal ne
+  porte plus le calcul, ni au chargement ni à chaque déplacement GPS notable.
+- `walkgraph.ts` isole le graphe et les plus courts chemins, sans aucune dépendance au
+  parc : le même module sert au fil principal et au worker, sans embarquer le référentiel
+  des attractions dans le bundle du worker.
+- `walkClient.ts` porte le contrat : estimation à vol d'oiseau posée immédiatement pour
+  que l'app soit utilisable sans attendre, remplacée par les distances réelles dès que le
+  worker répond. **Repli synchrone complet** si les Workers sont indisponibles : plus lent,
+  jamais cassé.
+- Les lignes « moi » successives repartent toujours de la matrice de base, sinon elles
+  s'empileraient et la matrice grossirait sans fin.
+
+**Mesuré au navigateur**
+
+| | Résultat |
+| --- | --- |
+| Worker lancé | `walk.worker-*.js`, 2 ko |
+| Plus long blocage du fil principal | **26 ms** pendant le calcul GPS |
+| Régression | aucune : parcours, GPS, thèmes, PWA, hors ligne tous verts |
+
+Note sur les comptes d'étapes : 30 pour une journée entière planifiée depuis 09:00,
+15 pour un recalcul en milieu d'après-midi. Les deux sont cohérents, le second ne
+disposant que du temps restant.
+
 ## Session 5 — 11/08/2026 · Géolocalisation
 
 **Fait**
@@ -52,8 +80,7 @@ d'attraction, elles, restent valides. Niveaux d'attente renommés `w-go`, `w-mid
 - [ ] Déposer `public/equipe.jpg` puis `node scripts/cut-heads.mjs`.
 - [ ] Comparer `europa_park.curve` à `CURVE` une fois quelques jours collectés.
 - [ ] Confirmer si sept VirtualLine sont réservables simultanément.
-- [ ] `buildWalkMatrix` : 37 Dijkstra sur le fil principal, à passer en Web Worker si un
-      ralentissement se voit sur téléphone. Le GPS en ajoute un à chaque déplacement notable.
+- [x] ~~`buildWalkMatrix` sur le fil principal~~ — fait en session 6.
 
 ## Session 4 — 11/08/2026 · Serveur, écran de lancement, audit
 

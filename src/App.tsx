@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BY_ID, RIDES, type Ride } from "./data/rides";
 import { fetchWaits, type Snapshot } from "./lib/api";
-import { buildWalkMatrix, fetchFootGraph, fetchOsmPositions, withMe, type Graph, type LatLng, type WalkMatrix } from "./lib/geo";
+import { fetchFootWays, fetchOsmPositions, type LatLng } from "./lib/geo";
+import { useWalk } from "./lib/walkClient";
 import { buildPlan, clockMin, hhmm, type DayPlan } from "./lib/planner";
 import { downloadMarkdown, loadJournal, record, clearJournal } from "./lib/journal";
 import { copySelection, exportSelectionFile, load, merge, save, shareable, type AppState } from "./lib/storage";
-import { deviceName, fetchFootWays, pullState, pushState, stampState, type SyncState } from "./lib/sync";
+import { deviceName, fetchFootWays as footWaysFromServer, pullState, pushState, stampState, type SyncState } from "./lib/sync";
 import Selection from "./components/Selection";
 import Parcours from "./components/Parcours";
 import Section from "./components/Section";
@@ -34,8 +35,6 @@ export default function App() {
   const [st, setSt] = useState<AppState>(() => load());
   const [snap, setSnap] = useState<Snapshot | null>(null);
   const [osm, setOsm] = useState<Record<number, LatLng>>({});
-  const [walk, setWalk] = useState<WalkMatrix>({ m: {}, ok: false });
-  const [graph, setGraph] = useState<Graph | null>(null);
   const geo = usePosition();
   const [tab, setTab] = useState<"sel" | "go">("sel");
   const [busy, setBusy] = useState(false);
@@ -92,18 +91,15 @@ export default function App() {
 
   const positions = useCallback((r: Ride): LatLng => osm[r.id] ?? { lat: r.lat, lng: r.lng }, [osm]);
 
+  // Les temps de marche sont calculés dans un Web Worker : 37 Dijkstra sur
+  // 7 500 nœuds bloquaient l'interface le temps du calcul sur un téléphone.
+  const { walk, load: loadWays, locate, threaded } = useWalk(positions);
+
   useEffect(() => {
     let alive = true;
-    // Le graphe des allées coûte un appel Overpass ; le repli à vol d'oiseau
-    // est posé immédiatement pour que l'app soit utilisable sans attendre.
-    setWalk(buildWalkMatrix(null, positions));
-    fetchFootGraph(fetchFootWays).then((g) => {
-      if (!alive || !g) return;
-      setGraph(g);
-      setWalk(buildWalkMatrix(g, positions));
-    });
+    fetchFootWays(footWaysFromServer).then((ways) => { if (alive) loadWays(ways); });
     return () => { alive = false; };
-  }, [positions]);
+  }, [loadWays]);
 
   /**
    * La position rejoint la matrice de marche. On ne recalcule pas à chaque
@@ -117,8 +113,8 @@ export default function App() {
     const d = dernierFix.current;
     if (d && Math.abs(d.lat - p.lat) < 2.3e-4 && Math.abs(d.lng - p.lng) < 3.4e-4) return;
     dernierFix.current = p;
-    setWalk((w) => withMe(w, graph, p, positions));
-  }, [geo.usable, geo.fix, graph, positions]);
+    locate(p);
+  }, [geo.usable, geo.fix, locate]);
 
   /* ---- sauvegarde partagée ---- */
   useEffect(() => {
@@ -287,7 +283,7 @@ export default function App() {
         <div className="cell"><u>Jokers restants</u><b className="mono">{6 - spent} / 6</b></div>
         <div className="cell"><u>Étapes restantes</u><b className="mono">{restantes}</b></div>
         <div className="cell"><u>Attente moyenne</u><b className="mono">{avg !== null ? `${avg} min` : "—"}</b></div>
-        <div className="cell"><u>Marche</u><b className="mono">{walk.ok ? "allées" : "estimée"}</b></div>
+        <div className="cell"><u>Marche</u><b className="mono">{walk.ok ? "allées" : "estimée"}{threaded ? "" : " ·"}</b></div>
         <div className="cell"><u>Position</u><b className="mono">
           <span className={"dot " + (geo.usable ? "live" : geo.state === "off" ? "off" : "stale")} />
           {geoLabel(geo.state)}{geo.usable && geo.fix ? ` · ±${Math.round(geo.fix.acc)} m` : ""}
