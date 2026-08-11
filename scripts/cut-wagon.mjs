@@ -8,10 +8,17 @@
  * L'écran de lancement le détecte au chargement et remplace le wagon dessiné, sans
  * autre modification à faire.
  *
- * Options :
- *   --tol=60     tolérance de détourage, en distance de couleur (défaut 60)
- *   --rails      retire aussi les rails clairs restés derrière le wagon
- *   --coin=x,y   pixel servant d'échantillon de fond (défaut : le coin haut-gauche)
+ * Options de détourage :
+ *   --tol=60      tolérance, en distance de couleur (défaut 60)
+ *   --rails       retire aussi les rails clairs restés derrière le wagon
+ *   --coin=x,y    pixel servant d'échantillon de fond (défaut : le coin haut-gauche)
+ *
+ * Options d'orientation — le wagon de l'écran de lancement roule de la gauche vers
+ * la droite et s'incline tout seul en suivant la voie. L'image doit donc arriver
+ * **à plat et tournée vers la droite**, sinon l'inclinaison se cumule avec celle
+ * déjà présente dans la photo :
+ *   --miroir        retourne l'image horizontalement
+ *   --rotation=-18  redresse une photo prise en pente (degrés, sens horaire)
  */
 import sharp from "sharp";
 import { existsSync } from "node:fs";
@@ -35,6 +42,8 @@ if (!src) {
 const tol = Number(arg("tol", 60));
 const rails = process.argv.includes("--rails");
 const [cx, cy] = arg("coin", "2,2").split(",").map(Number);
+const miroir = process.argv.includes("--miroir");
+const rotation = Number(arg("rotation", 0));
 
 const { data, info } = await sharp(src).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
 const { width: W, height: H, channels: C } = info;
@@ -76,13 +85,25 @@ const marge = 4;
 const left = Math.max(0, x0 - marge), top = Math.max(0, y0 - marge);
 const w = Math.min(W - left, x1 - x0 + 2 * marge), h = Math.min(H - top, y1 - y0 + 2 * marge);
 
-await sharp(data, { raw: { width: W, height: H, channels: C } })
-  .extract({ left, top, width: w, height: h })
-  .png()
-  .toFile(join(root, "public/wagon.png"));
+let img = sharp(data, { raw: { width: W, height: H, channels: C } })
+  .extract({ left, top, width: w, height: h });
+
+// Redressement d'abord, miroir ensuite : l'inverse retournerait aussi l'angle.
+if (rotation) img = img.rotate(rotation, { background: { r: 0, g: 0, b: 0, alpha: 0 } });
+if (miroir) img = img.flop();
+
+// La rotation rajoute des marges transparentes : on recadre une seconde fois.
+if (rotation) {
+  const r = await img.png().toBuffer();
+  img = sharp(r).trim({ threshold: 1 });
+}
+
+await img.png().toFile(join(root, "public/wagon.png"));
 
 const pct = Math.round((effaces / (W * H)) * 100);
-console.log(`public/wagon.png  ${w}×${h}px`);
+const fin = await sharp(join(root, "public/wagon.png")).metadata();
+console.log(`public/wagon.png  ${fin.width}×${fin.height}px` +
+  (miroir ? " · retourné" : "") + (rotation ? ` · redressé de ${rotation}°` : ""));
 console.log(`fond échantillonné rgb(${fond.join(",")}) · ${pct} % de l'image rendue transparente`);
 console.log(pct < 8 || pct > 92
   ? "\nCe taux est suspect : ajustez --tol, ou --coin=x,y si le coin haut-gauche n'est pas du fond."

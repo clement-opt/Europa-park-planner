@@ -5,3 +5,6 @@ dist-ssr
 *.local
 .vercel
 tsconfig.tsbuildinfo
+
+# image de travail du wagon : seul le résultat détouré est versionné
+public/wagon-source.*
