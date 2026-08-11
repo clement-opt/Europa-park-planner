@@ -1,7 +1,8 @@
 import { BY_ID } from "../data/rides";
-import { emptyDay, type DayPlan } from "./planner";
+import { emptyDay, type DayPlan, type Lot } from "./planner";
+import { DEFAULT_CODE } from "./sync";
 
-const KEY = "ep.state.v3";
+const KEY = "ep.state.v4";
 
 export type AppState = {
   days: Record<1 | 2, DayPlan>;
@@ -9,6 +10,8 @@ export type AppState = {
   pace: number;
   theme: "light" | "dark";
   relay: string;
+  code: string;      // séjour partagé
+  shared: boolean;   // synchronisation active
 };
 
 export const initialState = (): AppState => ({
@@ -16,19 +19,32 @@ export const initialState = (): AppState => ({
   day: 1,
   pace: 4.5,
   theme: "dark",
-  relay: ""
+  relay: "",
+  code: DEFAULT_CODE,
+  shared: true
 });
+
+/** Complète un jour lu du stockage ou du serveur avec les champs manquants. */
+export const hydrateDay = (d: Partial<DayPlan> | undefined): DayPlan => ({
+  ...emptyDay(),
+  ...d,
+  shape: { ...emptyDay().shape, ...(d?.shape ?? {}) },
+  lots: d?.lots ?? []
+});
+
+export function merge(p: Partial<AppState> | null | undefined): AppState {
+  const base = initialState();
+  if (!p) return base;
+  return {
+    ...base, ...p,
+    days: { 1: hydrateDay(p.days?.[1]), 2: hydrateDay(p.days?.[2]) }
+  };
+}
 
 export function load(): AppState {
   try {
     const raw = localStorage.getItem(KEY);
-    if (!raw) return initialState();
-    const p = JSON.parse(raw) as AppState;
-    const base = initialState();
-    return {
-      ...base, ...p,
-      days: { 1: { ...emptyDay(), ...p.days?.[1] }, 2: { ...emptyDay(), ...p.days?.[2] } }
-    };
+    return raw ? merge(JSON.parse(raw)) : initialState();
   } catch {
     return initialState();
   }
@@ -38,12 +54,36 @@ export function save(s: AppState) {
   try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* quota */ }
 }
 
-/** Résumé texte de la sélection, à copier pour le partager ou le faire relire. */
+/** Ce qui part sur le serveur : l'état du séjour, pas les préférences d'appareil. */
+export const shareable = (s: AppState) => ({ days: s.days, day: s.day, pace: s.pace });
+
+/* ---- lots d'attractions ---------------------------------------------- */
+
+export const newLot = (name: string, day: DayPlan): Lot => ({
+  id: Math.random().toString(36).slice(2, 9),
+  name: name.trim() || `Lot du ${new Date().toLocaleDateString("fr-FR")}`,
+  ids: [...day.sel],
+  gc: [...day.gc],
+  vl: [...day.vl],
+  locked: true
+});
+
+/** Applique un lot au jour courant. Les attractions déjà faites sont conservées. */
+export const applyLot = (lot: Lot, day: DayPlan): Partial<DayPlan> => ({
+  sel: [...new Set([...lot.ids, ...day.done])],
+  gc: lot.gc.filter((id) => lot.ids.includes(id)),
+  vl: lot.vl.filter((id) => lot.ids.includes(id)),
+  steps: []
+});
+
+/* ---- exports --------------------------------------------------------- */
+
 export function selectionAsText(s: AppState): string {
   const L: string[] = ["Sélection Europa-Park — 4 adultes, séjour 2 jours", ""];
   ([1, 2] as const).forEach((d) => {
     const day = s.days[d];
     L.push(`## Jour ${d} — ${day.start} à ${day.end}, déjeuner ${day.lunch} (${day.lunchDur} min), tolérance ${day.tol}`);
+    if (day.first && BY_ID[day.first]) L.push(`Ouverture imposée : ${BY_ID[day.first].n}`);
     if (!day.sel.length) { L.push("(rien de sélectionné)", ""); return; }
     day.sel.forEach((id) => {
       const r = BY_ID[id];

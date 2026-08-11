@@ -36,6 +36,7 @@ export default function ParkMap(props: {
   done: Set<number>;
   steps: Step[];
   onToggle: (id: number) => void;
+  active: boolean;
 }) {
   const box = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
@@ -53,6 +54,19 @@ export default function ParkMap(props: {
     setTimeout(() => m.invalidateSize(), 120);
     return () => { m.remove(); map.current = null; };
   }, []);
+
+  /**
+   * Leaflet mesure son conteneur au montage. Quand l'onglet est masqué en CSS,
+   * cette mesure vaut zéro et la carte reste grise jusqu'à un redimensionnement.
+   * On la force à se remesurer à chaque fois que l'onglet redevient visible.
+   */
+  useEffect(() => {
+    if (!props.active) return;
+    const m = map.current;
+    if (!m) return;
+    const t = setTimeout(() => m.invalidateSize(), 60);
+    return () => clearTimeout(t);
+  }, [props.active]);
 
   useEffect(() => {
     const m = map.current;
