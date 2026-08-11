@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { BY_ID, RIDES, zoneOf, type Ride } from "../data/rides";
+import { BY_ID, RIDES, tagsOf, zoneOf, type Ride } from "../data/rides";
 import { hhmm, type DayPlan, type Step } from "../lib/planner";
 import { ME_KEY, walkFromMatrix, type LatLng, type WalkMatrix } from "../lib/geo";
 import { geoLabel, type GeoState } from "../lib/position";
@@ -79,6 +79,9 @@ export default function Parcours({ day, now, positions, waits, onTick, onSelect,
                 <span className={"wt mono " + (w < 0 ? "w-closed" : w < 20 ? "w-go" : w <= 45 ? "w-mid" : "w-stop")}>
                   {w < 0 ? "fermé" : `${w} min`}
                 </span>
+              </div>
+              <div className="tags">
+                {tagsOf(r).map((t) => <span key={t.l} className={"tag " + t.ton}>{t.l}</span>)}
               </div>
               <p className="why">{r.why}</p>
               <p className="plus">{r.plus}</p>
@@ -242,6 +245,9 @@ export default function Parcours({ day, now, positions, waits, onTick, onSelect,
                     {s.mode === "vl" && <span className="badge vl">VIRTUALLINE</span>}
                     {day.first === s.ride.id && <span className="badge first"><Star />OUVERTURE</span>}
                   </h4>
+                  <div className="tags">
+                    {tagsOf(s.ride).slice(0, 2).map((t) => <span key={t.l} className={"tag " + t.ton}>{t.l}</span>)}
+                  </div>
                   <p className="why">{s.ride.plus}</p>
                   <div className="meta">
                     <span>{zoneOf(s.ride.z).flag} {s.ride.z}</span>

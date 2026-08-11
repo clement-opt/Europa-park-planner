@@ -9,6 +9,31 @@ git le fait déjà. On y écrit ce que git ne dit pas — pourquoi, et où on s'
 
 ---
 
+## Session 8 — 11/08/2026 · Noms officiels et étiquettes
+
+**Fait**
+
+- **Noms alignés sur les officiels.** Les 36 noms de `rides.ts` étaient tronqués ou
+  reformulés ; ils reprennent maintenant exactement ce que publie l'API :
+  « Eurosat – CanCan Coaster », « Madame Freudenreich Curiosités »,
+  « Whale Adventures – Northern Lights », « Old Mac Donald's Tractor Fun »…
+- **Étiquettes par attraction**, visibles dans la liste, la mini-fiche et l'itinéraire :
+  Sensations fortes, Sensations, Familial, Tout-petits, Aquatique, Brassage élevé, Calme,
+  VirtualLine. Elles sont aussi prises en compte par la recherche.
+
+**Constaté**
+
+- **Il n'existe pas de noms français chez queue-times.** Les endpoints `/fr/` et `/de/`
+  répondent 200 mais renvoient exactement les mêmes libellés que l'anglais — vérifié en
+  appelant les trois depuis Postgres. Le parc utilise des noms propres non traduits.
+  `/fr-FR/` répond 404. Il n'y avait donc rien à importer, seulement à cesser de tronquer.
+- **Les étiquettes sont déduites, jamais saisies.** Elles se calculent depuis `thr`, `nau`,
+  `kid`, `wet` et `vl` : une attraction ne peut pas être marquée « Familial » tout en
+  portant une intensité de 5. Le référentiel reste la seule source, et une correction de
+  `thr` met les étiquettes à jour toute seule.
+- Contrôle : 18 attractions « Familial », 8 « Sensations fortes ». Recherche par étiquette
+  fonctionnelle, aucune erreur console.
+
 ## Session 7 — 11/08/2026 · Carte : tracé réel, mini-fiche, lisibilité
 
 **Fait**

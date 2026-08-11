@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { BY_ID, RIDES, zoneOf, type Ride } from "../data/rides";
+import { BY_ID, RIDES, tagsOf, zoneOf, type Ride } from "../data/rides";
 import { applyLot, newLot } from "../lib/storage";
 import type { DayPlan, Lot } from "../lib/planner";
 import Section from "./Section";
@@ -40,7 +40,8 @@ export default function Selection({ day, setDay, waits, pace, setPace, toast, sp
     const needle = norm(q.trim());
     const z: Record<string, Ride[]> = {};
     RIDES
-      .filter((r) => !needle || norm(r.n).includes(needle) || norm(r.z).includes(needle) || norm(r.why).includes(needle))
+      .filter((r) => !needle || norm(r.n).includes(needle) || norm(r.z).includes(needle)
+        || norm(r.why).includes(needle) || tagsOf(r).some((t) => norm(t.l).includes(needle)))
       .forEach((r) => (z[r.z] = z[r.z] ?? []).push(r));
     return Object.entries(z).sort(([a], [b]) => a.localeCompare(b));
   }, [q]);
@@ -274,6 +275,9 @@ export default function Selection({ day, setDay, waits, pace, setPace, toast, sp
                   <span className={"wt mono " + waitClass(w)}>{waitLabel(w)}</span>
 
                   <div className="desc">
+                    <div className="tags">
+                      {tagsOf(r).map((t) => <span key={t.l} className={"tag " + t.ton}>{t.l}</span>)}
+                    </div>
                     <p className="why">{r.why}</p>
                     <p className="plus">{r.plus}</p>
                   </div>

@@ -655,3 +655,19 @@ details[open] > summary.mini::after { content: "▴"; }
 @keyframes sheet-bg { from { opacity: 0; } }
 @keyframes sheet-up { from { transform: translateY(26px); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .sheet, .sheetcard { animation: none; } }
+
+/* ---- étiquettes ---- */
+.tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.tag {
+  font-size: 12.5px; font-weight: 800; letter-spacing: .02em;
+  padding: 3px 9px; border-radius: 999px; border: 1.5px solid;
+  white-space: nowrap;
+}
+.tag.fort  { color: var(--stop);   border-color: color-mix(in oklab, var(--stop) 40%, transparent);   background: color-mix(in oklab, var(--stop) 11%, transparent); }
+.tag.moyen { color: var(--mid);    border-color: color-mix(in oklab, var(--mid) 40%, transparent);    background: color-mix(in oklab, var(--mid) 11%, transparent); }
+.tag.doux  { color: var(--go);     border-color: color-mix(in oklab, var(--go) 40%, transparent);     background: color-mix(in oklab, var(--go) 11%, transparent); }
+.tag.eau   { color: var(--rail);   border-color: color-mix(in oklab, var(--rail) 42%, transparent);   background: color-mix(in oklab, var(--rail) 11%, transparent); }
+.tag.vl    { color: var(--vline);  border-color: color-mix(in oklab, var(--vline) 42%, transparent);  background: color-mix(in oklab, var(--vline) 11%, transparent); }
+.tag.kid   { color: var(--gold);   border-color: color-mix(in oklab, var(--gold) 45%, transparent);   background: color-mix(in oklab, var(--gold) 12%, transparent); }
+.stopcard .tags { margin: 4px 0 2px; }
+.sheetcard .tags { margin: 0 0 10px; }
