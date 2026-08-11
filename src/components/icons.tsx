@@ -1,6 +1,11 @@
-export const Clover = () => (
+/**
+ * Le joker Green Card était figuré par un trèfle : mauvais signe, mauvaise
+ * lecture. Un coupe-file se comprend mieux par un billet à encoches.
+ */
+export const Pass = () => (
   <svg viewBox="0 0 24 24" aria-hidden="true">
-    <path d="M12 21c-.5-2.6-1.4-4-2.7-4.8 1.3.4 2.4.2 3.1-.6.8-.9.7-2.2-.2-3-.9-.8-2.2-.7-3 .2-.5.6-.7 1.4-.5 2.2-.9-1-2.2-1.2-3.3-.5C4.2 15.2 4 16.7 4.9 17.8c.9 1.1 2.4 1.2 3.5.4C7.2 19.4 6.7 21 12 21zM12 3c-.8 0-1.5.4-1.9 1.1-.5-.2-1.1-.2-1.7.1-1.2.6-1.6 2-1 3.1.4.8 1.2 1.3 2 1.3-.3.7-.3 1.5 0 2.2.6 1.2 2 1.6 3.2 1s1.6-2 1-3.2c-.2-.3-.4-.5-.6-.7.8-.2 1.5-.8 1.8-1.6.4-1.2-.3-2.6-1.6-3-.3-.1-.8-.2-1.2-.1V3z" />
+    <path d="M3 7.5A1.5 1.5 0 0 1 4.5 6h15A1.5 1.5 0 0 1 21 7.5v2a2.5 2.5 0 0 0 0 5v2a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 16.5v-2a2.5 2.5 0 0 0 0-5v-2z" />
+    <path d="M14 7v1.6M14 11.2v1.6M14 15.4V17" stroke="var(--surface, #fff)" strokeWidth="1.7" strokeLinecap="round" fill="none" />
   </svg>
 );
 
@@ -14,9 +19,20 @@ export const Star = () => (
   </svg>
 );
 
+const stroke = {
+  fill: "none", stroke: "currentColor", strokeWidth: 2,
+  strokeLinecap: "round" as const, strokeLinejoin: "round" as const
+};
+
 export const Lock = () => (
-  <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: 20, height: 20, fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" }}>
+  <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: 20, height: 20, ...stroke }}>
     <rect x="4" y="10" width="16" height="10" rx="2.5" />
     <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+  </svg>
+);
+
+export const Chevron = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true" className="chev" style={{ width: 20, height: 20, ...stroke }}>
+    <path d="M6 9l6 6 6-6" />
   </svg>
 );

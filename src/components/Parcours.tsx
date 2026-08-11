@@ -4,7 +4,7 @@ import { RIDES, zoneOf, type Ride } from "../data/rides";
 import { hhmm, type DayPlan, type Step } from "../lib/planner";
 import type { LatLng } from "../lib/geo";
 import ParkMap from "./ParkMap";
-import { Check, Clover, Star } from "./icons";
+import { Check, Pass, Star } from "./icons";
 
 type RideStep = Extract<Step, { kind: "ride" }>;
 
@@ -59,6 +59,9 @@ export default function Parcours({ day, now, positions, waits, onTick, onSelect,
             file {next.wait} min{next.mode === "gc" ? " avec le joker" : next.mode === "vl" ? " en VirtualLine" : ""}
           </p>
           <p style={{ marginTop: 8 }}>{next.ride.plus}</p>
+          <button className="go" onClick={(e) => onTick(next.ride.id, e)}>
+            <Check /> Étape faite, on passe à la suivante
+          </button>
         </div>
       )}
 
@@ -141,7 +144,7 @@ export default function Parcours({ day, now, positions, waits, onTick, onSelect,
                 <div className="txt">
                   <h4>
                     <span className="mono" style={{ color: "var(--ink-3)" }}>{num}.</span> {s.ride.n}
-                    {s.mode === "gc" && <span className="badge gc"><Clover />JOKER</span>}
+                    {s.mode === "gc" && <span className="badge gc"><Pass />JOKER</span>}
                     {s.mode === "vl" && <span className="badge vl">VIRTUALLINE</span>}
                     {day.first === s.ride.id && <span className="badge first"><Star />OUVERTURE</span>}
                   </h4>
