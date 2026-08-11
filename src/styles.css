@@ -763,3 +763,7 @@ details[open] > summary.mini::after { content: "▴"; }
   text-decoration: underline; text-underline-offset: 3px;
   padding: 6px 2px; min-height: 40px;
 }
+
+/* Bilan de fin de parcours : il explique pourquoi la liste s'arrête là. */
+.card.bilan { border-color: var(--line-2); margin-top: 16px; }
+.card.bilan h3 { background: color-mix(in oklab, var(--gold) 13%, var(--surface-2)); }

@@ -9,6 +9,26 @@ git le fait déjà. On y écrit ce que git ne dit pas — pourquoi, et où on s'
 
 ---
 
+## Session 15 — 11/08/2026 · Le défilement animé se faisait écraser
+
+**Le retour en haut ne marchait toujours pas sur l'appareil**, alors qu'il passait au
+test. Cause : `behavior: "smooth"`. Le défilement animé démarre, puis la liste rétrécit
+sous lui — les étapes validées disparaissent et `motion` anime leur hauteur — et le
+navigateur écrête la course en plein vol. Le test ne le voyait pas parce qu'il mesurait
+après stabilisation.
+
+Trois changements : défilement **instantané** au lieu d'animé, `document.scrollingElement`
+ajouté aux cibles, et **trois passes** — après le rendu de React, après la peinture, puis
+260 ms plus tard quand les animations de hauteur sont retombées. Mesuré à 120 ms, 520 ms
+et 2 s après le clic : 0 partout, sur « Fait » comme sur « Retirer ».
+
+**« Ça s'arrête à 15 h 19 »** — ce n'était pas la collecte : 1 950 relevés, 50 exécutions,
+zéro erreur, dernière à 19 h 00 locale. C'était l'itinéraire, qui s'arrêtait sans dire
+pourquoi. Une carte de fin l'explique désormais : soit toutes les attractions sont
+placées et il n'y a plus rien à faire, soit certaines n'ont pas pu l'être — fermées ou
+écartées par le plafond de brassage — et elle en donne le nombre. Elle indique aussi le
+temps restant avant l'heure de fin, avec un bouton pour ajouter des attractions.
+
 ## Session 14 — 11/08/2026 · Le retour en haut ne couvrait qu'un chemin sur quatre
 
 Le retour en haut n'était posé que dans `compute`, donc sur « Calculer » et

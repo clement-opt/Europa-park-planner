@@ -197,8 +197,21 @@ export default function App() {
    */
   const remonter = useCallback(() => {
     if (tabRef.current !== "go") return;
-    window.scrollTo({ top: 0, behavior: "smooth" });
-    document.querySelectorAll(".pane").forEach((n) => n.scrollTo({ top: 0, behavior: "smooth" }));
+
+    const haut = () => {
+      // `auto` et non `smooth` : un défilement animé démarre, puis la liste
+      // rétrécit sous lui — les étapes disparaissent et `motion` anime leur
+      // hauteur — et le navigateur écrête la course en plein vol. C'est ce qui
+      // faisait échouer le retour en haut sur l'appareil alors qu'il passait au test.
+      window.scrollTo({ top: 0, behavior: "auto" });
+      document.scrollingElement?.scrollTo({ top: 0, behavior: "auto" });
+      document.querySelectorAll(".pane").forEach((n) => n.scrollTo({ top: 0, behavior: "auto" }));
+    };
+
+    // Trois passes : après le rendu de React, après la peinture, puis une fois
+    // les animations de hauteur retombées. Une seule ne suffit pas.
+    requestAnimationFrame(() => { haut(); requestAnimationFrame(haut); });
+    window.setTimeout(haut, 260);
   }, []);
 
   /**

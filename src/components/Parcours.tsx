@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { BY_ID, RIDES, tagsOf, zoneOf, type Ride } from "../data/rides";
-import { hhmm, type DayPlan, type Step } from "../lib/planner";
+import { hhmm, toMin, type DayPlan, type Step } from "../lib/planner";
 import { ME_KEY, walkFromMatrix, type LatLng, type WalkMatrix } from "../lib/geo";
 import { geoLabel, type GeoState } from "../lib/position";
 import ParkMap from "./ParkMap";
@@ -215,6 +215,32 @@ export default function Parcours({ day, now, positions, waits, onTick, onSelect,
           </div>
         </div>
       )}
+
+      {rides.length > 0 && (() => {
+        const fin = Math.max(...rides.map((r) => r.end));
+        const reste = toMin(day.end) - fin;
+        const nonPlacees = day.sel.filter((id) => !done.has(id) && !rides.some((r) => r.ride.id === id)).length;
+        return (
+          <div className="card bilan">
+            <h3>Fin du parcours <em>{hhmm(fin)}</em></h3>
+            <div className="pad">
+              <p className="note" style={{ marginTop: 0 }}>
+                {nonPlacees > 0
+                  ? <>Le parcours s'arrête à <b>{hhmm(fin)}</b> : <b>{nonPlacees} attraction{nonPlacees > 1 ? "s" : ""}</b>{" "}
+                     n'ont pas pu être placées — fermées, ou écartées par le plafond de brassage.</>
+                  : <>Toutes vos attractions sont placées. Le parcours s'arrête à <b>{hhmm(fin)}</b>{" "}
+                     parce qu'il n'y a plus rien à faire, pas parce que le temps manque.</>}
+                {reste > 20 && <> Il reste <b>{Math.floor(reste / 60)} h {reste % 60} min</b> avant votre heure de fin.</>}
+              </p>
+              {reste > 20 && (
+                <button className="ghost" style={{ marginTop: 10 }} onClick={() => setAdding(true)}>
+                  Ajouter des attractions pour occuper ce temps
+                </button>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {!live.length ? (
         <div className="card"><div className="empty">
