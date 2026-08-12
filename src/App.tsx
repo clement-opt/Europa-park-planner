@@ -309,6 +309,28 @@ export default function App() {
     remonter();
   }, [day, snap, setDay, replanifier, remonter]);
 
+  /**
+   * Reprend la dernière version publiée, tout de suite.
+   *
+   * Le service worker garde les fichiers de la version précédente et les ressert tant
+   * qu'il n'a pas été remplacé, ce qui peut demander plusieurs ouvertures complètes de
+   * l'app. Dans le parc, on n'a pas ce temps-là. Vider les caches force le prochain
+   * chargement à repartir du réseau ; la sélection, elle, vit dans localStorage et sur
+   * le serveur, elle n'est pas touchée.
+   */
+  const forcerMaj = useCallback(async () => {
+    setToast("Récupération de la dernière version…");
+    try {
+      const regs = (await navigator.serviceWorker?.getRegistrations?.()) ?? [];
+      await Promise.all(regs.map((r) => r.update().catch(() => undefined)));
+      if ("caches" in window) {
+        const noms = await caches.keys();
+        await Promise.all(noms.map((n) => caches.delete(n)));
+      }
+    } catch { /* navigateur sans service worker : le rechargement suffit */ }
+    location.reload();
+  }, []);
+
   /** Repousse l'heure de fin, sans avoir à ouvrir les réglages. */
   const prolonger = useCallback((h: number) => {
     const fin = Math.min(23 * 60 + 59, toMin(day.end) + h * 60);
@@ -533,9 +555,10 @@ export default function App() {
               Version affichée : le service worker sert la précédente tant que l'app
               n'a pas été réellement fermée, et rien à l'écran ne distinguait les deux.
             */}
-            <p className="note" style={{ marginBottom: 0 }}>
+            <p className="note">
               Version <b className="mono">{__BUILD__}</b>
             </p>
+            <button className="ghost" onClick={forcerMaj}>Forcer la mise à jour</button>
           </Section>
         </section>
 
