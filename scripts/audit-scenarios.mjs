@@ -461,6 +461,45 @@ await scenario("22. Autour de vous : rien n'est caché, et la carte recentre", a
   return p;
 });
 
+await scenario("23. Prolonger la journée y loge de nouvelles attractions", async (ouvrir, ko) => {
+  const p = await ouvrir({ heure: [18, 0] });          // deux heures avant la fin : peu rentre
+  await planMix(p);
+  const avant = await nbAttractions(p);
+  const restaient = await p.getByText(/n'ont pas pu être placées/).count();
+  if (!restaient) return ko("tout est placé, la prolongation n'a rien à loger"), p;
+
+  await p.clock.setFixedTime(new Date(new Date().setHours(20, 30, 0, 0)));
+  await reveiller(p);
+  await p.getByRole("button", { name: "+ 3 heures" }).click();
+  await p.waitForTimeout(1800);
+  const apres = await nbAttractions(p);
+  console.log(`   (${avant} attractions avant la prolongation, ${apres} après)`);
+  if (apres <= avant) ko(`${avant}→${apres} : le temps ouvert n'a rien logé`);
+  return p;
+});
+
+await scenario("24. « Je viens de la faire » depuis la fiche d'une attraction", async (ouvrir, ko) => {
+  const p = await ouvrir({ heure: [10, 0] });
+  await planMix(p);
+  const avant = await nbAttractions(p);
+  // La fiche s'ouvre depuis la carte : on passe par un carreau « Autour de vous ».
+  await p.context().grantPermissions(["geolocation"]);
+  await p.context().setGeolocation({ latitude: 48.2655, longitude: 7.7215 });
+  await p.locator(".row .ghost", { hasText: "Me localiser dans le parc" }).click();
+  await p.waitForTimeout(2600);
+  const carreau = p.locator(".autour .prox").first();
+  if (!(await carreau.count())) return ko("aucun carreau autour de soi"), p;
+  await carreau.click(); await p.waitForTimeout(600);
+  const fiche = p.locator(".sheet");
+  if (!(await fiche.count())) return ko("la fiche ne s'ouvre pas"), p;
+  await fiche.getByRole("button", { name: /Je viens de la faire|Remettre à faire/ }).click();
+  await p.waitForTimeout(1800);
+  if (!(await p.locator(".sect.faites").count())) ko("l'attraction n'est pas comptée comme faite");
+  const apres = await nbAttractions(p);
+  if (apres < avant - 1) ko(`${avant}→${apres} : le parcours a perdu des attractions`);
+  return p;
+});
+
 await B.close();
 
 const rates = resultats.filter((r) => r.echecs.length);

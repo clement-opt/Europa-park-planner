@@ -324,7 +324,9 @@ export default function App() {
    */
   const replanifier = useCallback((next: DayPlan): Step[] => {
     if (!snap) return next.steps;
-    const steps = buildPlan({ day: next, snap, pace: st.pace, positions, walk, fromNow: true, rides: RIDES, me: geo.usable ? geo.fix!.p : null, prof: courbe ?? undefined });
+    // L'ordre déjà à l'écran sert de repère : on ne remanie pas tout pour un gain marginal.
+    const ordre = next.steps.filter((s): s is Extract<Step, { kind: "ride" }> => s.kind === "ride").map((s) => s.ride.id);
+    const steps = buildPlan({ day: next, snap, pace: st.pace, positions, walk, fromNow: true, rides: RIDES, me: geo.usable ? geo.fix!.p : null, prof: courbe ?? undefined, ordre });
     const restantes = next.sel.filter((id) => !next.done.includes(id)).length;
     if (steps.some((s) => s.kind === "ride") || !restantes) return steps;
     setToast(clockMin() >= toMin(next.end)
@@ -394,9 +396,15 @@ export default function App() {
   /** Repousse l'heure de fin, sans avoir à ouvrir les réglages. */
   const prolonger = useCallback((h: number) => {
     const fin = Math.min(23 * 60 + 59, toMin(day.end) + h * 60);
-    setDay({ end: hhmm(fin) });
-    setToast(`Journée prolongée jusqu'à ${hhmm(fin)}`);
-  }, [day.end, setDay]);
+    const next = { ...day, end: hhmm(fin) };
+    // Le temps qu'on vient d'ouvrir doit être occupé sur-le-champ : prolonger sans
+    // replanifier laissait le parcours identique, et il fallait deviner qu'un second
+    // geste était attendu.
+    const steps = snap && day.steps.length ? replanifier(next) : day.steps;
+    setDay({ end: hhmm(fin), steps });
+    const n = steps.filter((s) => s.kind === "ride").length;
+    setToast(`Journée prolongée jusqu'à ${hhmm(fin)} · ${n} attraction${n > 1 ? "s" : ""} au parcours`);
+  }, [day, snap, setDay, replanifier]);
 
   const onRemove = useCallback((id: number) => {
     replan({

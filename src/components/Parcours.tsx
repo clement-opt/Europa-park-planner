@@ -12,27 +12,20 @@ type RideStep = Extract<Step, { kind: "ride" }>;
 const waitClass = (w: number) => (w < 0 ? "w-closed" : w < 20 ? "w-go" : w <= 45 ? "w-mid" : "w-stop");
 
 /**
- * Deux temps, et non un seul.
+ * L'animation de sortie ne touche plus à la hauteur.
  *
- * Tout se jouait en un ressort unique : la carte disparaissait pendant que la liste se
- * refermait dessus, et l'œil ne voyait qu'un sursaut. La carte part d'abord — elle
- * jaillit ou glisse pendant un tiers de seconde — puis la place se referme, décalée
- * de deux cents millisecondes. Un demi-seconde en tout, le temps de comprendre ce
- * qu'on vient de faire.
+ * On animait `height` vers zéro **pendant** que les étapes suivantes se repositionnaient :
+ * deux mesures concurrentes sur les mêmes éléments, et un effet saccadé qui donnait
+ * l'impression que tout cassait. `AnimatePresence mode="popLayout"` sort la carte du
+ * flux dès le premier instant : elle s'efface librement, et les voisines n'ont plus
+ * qu'un seul mouvement à jouer, celui de leur remontée.
  */
-const sortie = {
-  opacity: { duration: 0.3 },
-  scale: { duration: 0.3, ease: [0.2, 0.7, 0.3, 1] as const },
-  x: { duration: 0.32, ease: [0.4, 0, 0.2, 1] as const },
-  y: { duration: 0.32, ease: [0.2, 0.7, 0.3, 1] as const },
-  height: { duration: 0.34, delay: 0.2 },
-  marginBottom: { duration: 0.34, delay: 0.2 }
-};
+const sortie = { duration: 0.26, ease: [0.3, 0, 0.2, 1] as const };
 
-/** Les étapes qui restent remontent d'un ressort plus souple, donc lisible. */
+/** Les étapes qui restent remontent d'un ressort souple, donc lisible. */
 const rythme = {
-  layout: { type: "spring" as const, stiffness: 190, damping: 28 },
-  default: { type: "spring" as const, stiffness: 300, damping: 30 }
+  layout: { type: "spring" as const, stiffness: 170, damping: 26, mass: 1 },
+  default: { duration: 0.24 }
 };
 
 type Props = {
@@ -171,7 +164,19 @@ export default function Parcours({ day, now, positions, waits, onTick, onSelect,
                   À <b>{walkFromMatrix(walk, ME_KEY, r.id, pace)} min</b> à pied d'où vous êtes.
                 </p>
               )}
+              {/*
+                « Je viens de la faire » manquait : on fait une attraction de son côté,
+                sans l'avoir au programme, et il fallait l'ajouter au parcours puis la
+                cocher. Deux gestes pour dire une chose. Le temps ainsi libéré est
+                aussitôt réemployé, puisque cocher déclenche la replanification.
+              */}
               <div className="row" style={{ marginTop: 14, marginBottom: 0 }}>
+                <button className="ghost" style={{ flex: 1 }}
+                  onClick={() => { setGeste("fait"); onTick(r.id); setFiche(null); }}>
+                  {done.has(r.id) ? "Remettre à faire" : "Je viens de la faire"}
+                </button>
+              </div>
+              <div className="row" style={{ marginTop: 8, marginBottom: 0 }}>
                 <button className="ghost" style={{ flex: 1 }}
                   onClick={() => { setGeste("retire"); dedans ? onRemove(r.id) : onAdd(r.id); setFiche(null); }}>
                   {dedans ? "Retirer du parcours" : "Ajouter au parcours"}
@@ -439,13 +444,17 @@ export default function Parcours({ day, now, positions, waits, onTick, onSelect,
           Choisissez vos attractions, posez vos jokers, puis lancez le calcul depuis l'onglet Attractions.
         </div></div>
       ) : (
-        <AnimatePresence initial={false}>{live.map((s) => {
+        <AnimatePresence initial={false} mode="popLayout">{live.map((s) => {
           if (s.kind !== "ride") {
+            // La clé ne contient pas l'horaire. Quand elle le contenait, un simple
+            // ré-horodatage détruisait la pause pour en recréer une autre : mesurée à
+            // l'écran, elle sautait de 229 px puis revenait de 336 px sans jamais
+            // s'animer, là où les étapes voisines glissaient normalement.
             return (
-              <motion.div layout className="stop" key={s.kind + s.name + s.at}
+              <motion.div layout className="stop" key={s.kind + s.name}
                 style={{ ["--zh" as string]: 40 }}
                 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, height: 0, marginBottom: 0, transition: sortieA }}
+                exit={{ opacity: 0, y: -14, transition: sortieA }}
                 transition={rythmeA}>
                 <div className="hh"><b className="mono">{hhmm(s.at)}</b><u>{s.dur} min</u></div>
                 <div className="track"><span className="node" /></div>
@@ -464,8 +473,8 @@ export default function Parcours({ day, now, positions, waits, onTick, onSelect,
               style={{ ["--zh" as string]: zoneOf(s.ride.z).hue }}
               initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
               exit={geste === "fait"
-                ? { opacity: 0, scale: 1.1, y: -22, height: 0, marginBottom: 0, transition: sortieA }
-                : { opacity: 0, x: -34, height: 0, marginBottom: 0, transition: sortieA }}
+                ? { opacity: 0, scale: 0.94, y: -26, transition: sortieA }
+                : { opacity: 0, x: -40, transition: sortieA }}
               transition={rythmeA}>
               <div className="hh">
                 <b className="mono">{hhmm(s.arrive)}</b>

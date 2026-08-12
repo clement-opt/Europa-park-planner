@@ -121,6 +121,14 @@ type Opts = {
   me?: LatLng | null;
   /** Profil d'affluence mesuré. Absent, on retombe sur la courbe écrite à la main. */
   prof?: Profil;
+  /**
+   * Ordre du parcours précédent. Une replanification qui repart de zéro remanie tout :
+   * une attraction annoncée en 4e position se retrouvait en 20e après une simple
+   * validation, et l'écran tentait d'animer un déménagement complet. À qualité
+   * comparable, on garde donc l'ordre déjà annoncé — l'optimisation ne prend le dessus
+   * que si elle apporte franchement mieux.
+   */
+  ordre?: number[];
 };
 
 /**
@@ -133,7 +141,7 @@ type Opts = {
  * la cohérence de quartier, pour éviter de traverser le parc en diagonale ;
  * le placement des attractions aquatiques ; la répartition des sensations fortes.
  */
-export function buildPlan({ day, snap: direct, pace, positions, walk, fromNow, rides, me, prof }: Opts): Step[] {
+export function buildPlan({ day, snap: direct, pace, positions, walk, fromNow, rides, me, prof, ordre }: Opts): Step[] {
   /**
    * Préparer un parcours à l'avance, c'est le préparer pour un jour où le parc sera
    * ouvert : l'état de l'instant ne dit rien de demain matin. Préparé le soir après
@@ -274,7 +282,12 @@ export function buildPlan({ day, snap: direct, pace, positions, walk, fromNow, r
       continue;
     }
 
-    let best: { r: Ride; score: number; tw: number; arrive: number; w: number; mode: "gc" | "vl" | "file"; saved: number; after: number } | null = null;
+    type Candidat = { r: Ride; score: number; tw: number; arrive: number; w: number; mode: "gc" | "vl" | "file"; saved: number; after: number };
+    let best: Candidat | null = null;
+
+    // Ce que le parcours annonçait, dans l'ordre, réduit à ce qui reste à faire.
+    const attendus = (ordre ?? []).filter((id) => left.some((r) => r.id === id));
+    const faisables = new Map<number, Candidat>();
 
     for (const r of left) {
       const tw = walkFromMatrix(walk, at, r.id, pace);
@@ -303,7 +316,32 @@ export function buildPlan({ day, snap: direct, pace, positions, walk, fromNow, r
       const score = ((1 + (r.thr / 5) * 0.35 + Math.min(1.2, saved / 45)) / Math.max(6, cost))
         * shapeFactor(r, arrive) * sameZone;
 
-      if (!best || score > best.score) best = { r, score, tw, arrive, w, mode, saved, after };
+      const candidat = { r, score, tw, arrive, w, mode, saved, after };
+      faisables.set(r.id, candidat);
+      if (!best || score > best.score) best = candidat;
+    }
+
+    /**
+     * L'ordre annoncé est suivi, et quand une étape ne passe plus, on prend la
+     * **suivante annoncée** — pas la mieux notée.
+     *
+     * Deux tentatives ont échoué avant celle-ci. Une prime au score, même forte, ne
+     * faisait que réduire le désordre : après une validation on repart d'un autre
+     * endroit du parc, l'optimiseur y trouve légitimement un meilleur ordre, et une
+     * attraction annoncée en 4e position se retrouvait 2 900 px plus bas, mesuré à
+     * l'écran. Puis, en gardant l'attendue « si elle est tenable », il suffisait
+     * qu'elle ne le soit pas une fois — trop de brassage à cet instant — pour que
+     * l'optimiseur reprenne la main sur tout le reste de la journée.
+     *
+     * Ici la file d'attente des annoncées est parcourue dans l'ordre : la première qui
+     * passe est prise. Ce qui n'était pas au programme se loge derrière, quand il n'y
+     * a plus d'annoncée possible — c'est ainsi que le temps libéré se remplit. La
+     * réoptimisation complète reste accessible par « Recalculer », qui ne reçoit
+     * aucun ordre à respecter.
+     */
+    for (const id of attendus) {
+      const c = faisables.get(id);
+      if (c) { best = c; break; }
     }
 
     if (!best) {

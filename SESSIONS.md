@@ -9,6 +9,42 @@ git le fait déjà. On y écrit ce que git ne dit pas — pourquoi, et où on s'
 
 ---
 
+## Session 25 — 12/08/2026 · L'effet n'était pas cassé, c'est le parcours qui déménageait
+
+**Mesuré plutôt que supposé.** Un échantillonnage image par image de la position d'une
+étape voisine, après validation : elle passait de 881 px à 3 766 px **en une seule
+image**, défilement et hauteur de page inchangés. Aucun réglage d'animation n'y pouvait
+rien — à chaque validation, le parcours était recalculé de zéro et tout l'ordre
+changeait. L'animation faisait son travail : elle accompagnait un déménagement.
+
+Trois tentatives, dont deux fausses pistes que la mesure a écartées :
+
+1. Une prime de continuité au score (×1,3) : 2 885 px de saut → 800 px. Insuffisant.
+2. La même en dégressive selon le rang : **pire**, 1 160 px — elle donnait un bonus à des
+   étapes lointaines, qui pouvaient alors doubler la prochaine annoncée.
+3. La bonne : **l'ordre annoncé est parcouru dans l'ordre, et quand une étape ne passe
+   plus, on prend la suivante annoncée** — pas la mieux notée. Une attraction absente du
+   parcours précédent n'entre que lorsqu'il n'y a plus d'annoncée possible, ce qui est
+   exactement le moment où il faut loger quelque chose dans le temps libéré.
+
+Le bouton « Recalculer » ne reçoit aucun ordre à respecter : la réoptimisation complète
+reste disponible, mais elle est demandée.
+
+**Deux vraies causes de saccade, trouvées à la mesure.** L'animation de sortie faisait
+tomber la hauteur à zéro pendant que les voisines se repositionnaient — deux mesures
+concurrentes sur les mêmes éléments. `AnimatePresence mode="popLayout"` sort la carte
+du flux, et il ne reste qu'un mouvement à jouer. Et la clé React de la pause déjeuner
+contenait son horaire : tout ré-horodatage la détruisait pour en recréer une autre, si
+bien qu'elle sautait de 229 px puis revenait de 336 px sans jamais s'animer.
+
+**Prolonger la journée replanifie.** Le temps qu'on vient d'ouvrir doit être occupé
+sur-le-champ ; il fallait deviner qu'un second geste était attendu. Mesuré : 6 → 7
+attractions sur un « + 3 heures ».
+
+**« Je viens de la faire »** rejoint la fiche d'une attraction. On fait une attraction
+de son côté, sans l'avoir au programme : il fallait l'ajouter au parcours puis la
+cocher, deux gestes pour dire une chose.
+
 ## Session 24 — 12/08/2026 · Autour de soi, et se retrouver sur la carte
 
 **« On est à côté du Bob, il n'apparaît pas. »** « Autour de vous » écartait les
