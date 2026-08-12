@@ -177,6 +177,20 @@ for (const s of [{n:"390",w:390,h:844},{n:"430",w:430,h:932},{n:"820",w:820,h:11
   const tete2 = await p.locator(".nextup h4").textContent().catch(() => "(aucune)");
   if (tete2 !== "Silver Star") bad.push(`ouverture décalée, recalcul depuis maintenant : « ${tete2} » en tête`);
   ok.push(`ouverture décalée, recalcul depuis maintenant : tête « ${tete2} »`);
+
+  /*
+   * Imposée mais cochée « déjà faite » : le parcours ne la place plus, à raison. Le
+   * défaut était le silence — sept coches laissées par des essais la veille faisaient
+   * disparaître l'attraction d'ouverture sans un mot, étoile toujours allumée.
+   */
+  await p.locator(".nextup .go").click(); await p.waitForTimeout(1600);
+  const dite = await p.getByText(/marquée comme déjà faite/).count();
+  ok.push(`imposée déjà faite : mention ${dite ? "affichée" : "absente"}`);
+  if (!dite) bad.push("imposée déjà faite : le parcours n'explique pas pourquoi il ne la place plus");
+  await p.getByRole("button",{name:"La remettre à faire"}).click(); await p.waitForTimeout(1800);
+  const tete3 = await p.locator(".nextup h4").textContent().catch(() => "(aucune)");
+  ok.push(`imposée remise à faire : tête « ${tete3} »`);
+  if (tete3 !== "Silver Star") bad.push(`imposée remise à faire : « ${tete3} » en tête au lieu de Silver Star`);
   await ctx.close();
 }
 

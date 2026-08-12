@@ -212,6 +212,26 @@ export default function Selection({ day, setDay, waits, pace, setPace, toast, sp
           )}
         </div>
 
+        {/*
+          Les attractions cochées « déjà faite » sortent du parcours définitivement, et
+          rien ne les récapitulait : sept coches laissées par des essais la veille
+          suffisaient à faire disparaître une attraction sans explication, l'étoile de
+          l'ouverture comprise.
+        */}
+        {day.done.length > 0 && (
+          <div className="row" style={{ display: "block" }}>
+            <label className="f">Déjà faites</label>
+            <p className="note" style={{ marginTop: 0 }}>
+              <b>{day.done.length} attraction{day.done.length > 1 ? "s" : ""}</b> {day.done.length > 1 ? "sont marquées" : "est marquée"}{" "}
+              comme déjà {day.done.length > 1 ? "faites" : "faite"} : {day.done.length > 1 ? "elles sont retirées" : "elle est retirée"} du parcours.
+            </p>
+            <BoutonDanger
+              label="Tout remettre à faire"
+              confirmation={`Confirmer : remettre ${day.done.length} attraction${day.done.length > 1 ? "s" : ""} à faire`}
+              onConfirm={() => { setDay({ done: [], steps: [] }); toast("Tout est remis à faire"); }} />
+          </div>
+        )}
+
         <div className="row" style={{ display: "block" }}>
           <label className="f">Grosses sensations</label>
           <div className="seg">

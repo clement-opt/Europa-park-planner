@@ -178,9 +178,15 @@ export default function Parcours({ day, now, positions, waits, onTick, onSelect,
           distinguait « pas imposée » de « imposée puis ignorée ». On l'écrit toujours.
         */}
         <p className="note" style={{ margin: "0 14px 14px" }}>
-          {day.first != null && BY_ID[day.first]
-            ? <>Ouverture imposée : <b>{BY_ID[day.first].n}</b>{done.has(day.first) ? " (déjà faite)" : ""}.</>
-            : <>Aucune attraction imposée en ouverture : le parcours choisit par quoi commencer.</>}
+          {day.first == null || !BY_ID[day.first]
+            ? <>Aucune attraction imposée en ouverture : le parcours choisit par quoi commencer.</>
+            : done.has(day.first)
+              // Une attraction faite n'est plus imposée, à raison — mais la consigne
+              // semblait alors ignorée sans motif, l'étoile restant allumée.
+              ? <>Ouverture imposée : <b>{BY_ID[day.first].n}</b>, mais elle est <b>marquée comme
+                  déjà faite</b>, donc le parcours ne la place plus.{" "}
+                  <button className="lien" onClick={() => onTick(day.first!)}>La remettre à faire</button></>
+              : <>Ouverture imposée : <b>{BY_ID[day.first].n}</b>.</>}
         </p>
       </div>
 
