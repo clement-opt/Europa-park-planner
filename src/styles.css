@@ -231,6 +231,17 @@ input[type="range"] { width: 100%; accent-color: var(--rail); height: 46px; }
 }
 .ghost:hover { border-color: var(--rail); }
 .ghost[aria-pressed="true"] { background: var(--rail); border-color: var(--rail); color: var(--on-rail); }
+/* Horaire qui vient de changer : sans marquage, un recalcul complet passe inaperçu. */
+@keyframes maj {
+  from { background: color-mix(in oklab, var(--rail) 26%, var(--card)); }
+  to   { background: var(--card); }
+}
+.stop.maj .stopcard { animation: maj 1.5s ease-out; }
+.stop.maj .hh b { color: var(--rail); }
+@media (prefers-reduced-motion: reduce) {
+  .stop.maj .stopcard { animation: none; }
+}
+
 /* Liste en cours : celle dont la sélection est à l'écran. */
 .lot.active {
   border-color: var(--rail);

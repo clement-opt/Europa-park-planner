@@ -24,13 +24,24 @@ export const initialState = (): AppState => ({
   shared: true
 });
 
-/** Complète un jour lu du stockage ou du serveur avec les champs manquants. */
+/**
+ * Complète un jour lu du stockage ou du serveur avec les champs manquants.
+ *
+ * Les pauses « Respiration » sont retirées à la lecture, et pas seulement à la
+ * génération : un parcours calculé avant leur suppression les gardait, le stockage le
+ * conservait, et la synchronisation les rediffusait aux quatre téléphones. Sans ce
+ * ménage, il fallait recalculer pour les voir disparaître.
+ */
 export const hydrateDay = (d: Partial<DayPlan> | undefined): DayPlan => ({
   ...emptyDay(),
   ...d,
   shape: { ...emptyDay().shape, ...(d?.shape ?? {}) },
-  lots: d?.lots ?? []
+  lots: (d?.lots ?? []).map((l) => ({ ...l, steps: l.steps?.filter(sansRespiration) })),
+  steps: (d?.steps ?? []).filter(sansRespiration)
 });
+
+/** Seul le déjeuner, réglé par l'utilisateur, subsiste comme pause écrite. */
+const sansRespiration = (s: DayPlan["steps"][number]) => s.kind !== "break" || s.name === "Pause déjeuner";
 
 export function merge(p: Partial<AppState> | null | undefined): AppState {
   const base = initialState();

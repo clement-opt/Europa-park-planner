@@ -334,13 +334,19 @@ export default function App() {
     return next.steps.filter((s) => s.kind !== "ride" || next.sel.includes(s.ride.id));
   }, [snap, st.pace, positions, walk, geo.usable, geo.fix, courbe]);
 
-  /** Recalcul silencieux, après un ajout ou un retrait en cours de route. */
+  /**
+   * Recalcul silencieux, après un ajout ou un retrait en cours de route.
+   *
+   * Pas de retour en haut ici, contrairement au calcul complet : on retire une étape
+   * au milieu de la liste, et remonter d'un coup emportait l'écran loin de l'endroit
+   * qu'on regardait — l'animation de disparition et la remontée des étapes suivantes
+   * se jouaient hors champ, si bien que rien ne semblait se passer.
+   */
   const replan = useCallback((patch: Partial<DayPlan>) => {
     const next = { ...day, ...patch };
     if (!snap || !day.steps.length) return setDay(patch);
     setDay({ ...patch, steps: replanifier(next) });
-    remonter();
-  }, [day, snap, setDay, replanifier, remonter]);
+  }, [day, snap, setDay, replanifier]);
 
   /**
    * Reprend la dernière version publiée, tout de suite.

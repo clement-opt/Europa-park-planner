@@ -344,6 +344,43 @@ await scenario("18. Le reliquat devient une liste", async (ouvrir, ko) => {
   return p;
 });
 
+await scenario("19. Les respirations déjà enregistrées disparaissent sans recalcul", async (ouvrir, ko) => {
+  const p = await ouvrir({ heure: [10, 0] });
+  await planMix(p);
+  // On injecte une pause comme en produisaient les versions précédentes, puis on
+  // recharge sans rien recalculer : le stockage et la synchro les rediffusaient.
+  await p.evaluate(() => {
+    const s = JSON.parse(localStorage.getItem("ep.state.v4"));
+    const d = s.days[s.day];
+    d.steps.splice(1, 0, { kind: "break", at: 620, dur: 20, name: "Respiration",
+      detail: "Terrasse, glace, on laisse redescendre", pos: { lat: 48.26, lng: 7.72 } });
+    localStorage.setItem("ep.state.v4", JSON.stringify(s));
+  });
+  await p.reload({ waitUntil: "load" }); await p.waitForTimeout(3400);
+  await p.getByRole("tab", { name: /^Parcours/ }).click(); await p.waitForTimeout(700);
+  const reste = await p.getByText("Respiration", { exact: true }).count();
+  if (reste) ko(`${reste} respirations survivent au rechargement`);
+  if (!(await nbAttractions(p))) ko("le parcours a été vidé au passage");
+  return p;
+});
+
+await scenario("20. Retrait : l'écran ne saute pas, les horaires se signalent", async (ouvrir, ko) => {
+  const p = await ouvrir({ heure: [10, 0] });
+  await planMix(p);
+  await p.locator(".stop").nth(4).scrollIntoViewIfNeeded();
+  await p.waitForTimeout(400);
+  const avant = await p.evaluate(() => window.scrollY || document.scrollingElement.scrollTop);
+  if (avant < 40) ko("impossible de faire défiler la liste, test non concluant");
+  await p.locator(".stop .act.retirer").nth(2).click();
+  await p.waitForTimeout(700);
+  const marques = await p.locator(".stop.maj").count();
+  await p.waitForTimeout(900);
+  const apres = await p.evaluate(() => window.scrollY || document.scrollingElement.scrollTop);
+  if (apres < avant / 3) ko(`l'écran est remonté de ${Math.round(avant)} à ${Math.round(apres)}`);
+  if (!marques) ko("aucun horaire signalé comme mis à jour");
+  return p;
+});
+
 await B.close();
 
 const rates = resultats.filter((r) => r.echecs.length);

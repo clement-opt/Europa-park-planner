@@ -9,6 +9,26 @@ git le fait déjà. On y écrit ce que git ne dit pas — pourquoi, et où on s'
 
 ---
 
+## Session 23 — 12/08/2026 · Les respirations étaient dans la sauvegarde
+
+**Retirées du code, elles restaient à l'écran.** Le planificateur ne les produisait
+plus, mais un parcours calculé avant leur suppression les gardait : le stockage local
+le conservait, et la synchronisation les rediffusait aux quatre téléphones. Il aurait
+fallu recalculer pour les voir partir. Elles sont maintenant filtrées **à la lecture**,
+dans `hydrateDay`, donc à l'ouverture de l'app et à chaque état reçu du serveur — les
+lots enregistrés compris. Seul le déjeuner, réglé par l'utilisateur, subsiste.
+
+C'est la même leçon qu'à la session 21 : l'état persiste plus longtemps que le code.
+Retirer une règle ne suffit pas, il faut nettoyer ce qu'elle a laissé derrière elle.
+
+**Le retrait d'une étape se voit enfin.** L'animation existait, mais `replan` appelait
+`remonter()` : on retirait une étape au milieu de la liste et l'écran sautait en haut,
+si bien que la disparition et la remontée des suivantes se jouaient hors champ. Le
+retour en haut est réservé au calcul complet et à la validation d'étape, là où il a un
+sens. La carte retirée glisse maintenant hors de la colonne avant que la place ne se
+referme, et **les horaires qui changent se colorent une seconde et demie** — sans ça, un
+recalcul complet passait inaperçu.
+
 ## Session 22 — 12/08/2026 · Recalculer veut dire maintenant
 
 **Le bouton principal partait de l'heure d'ouverture.** À 11 h dans le parc,

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { BY_ID, RIDES, tagsOf, zoneOf, type Ride } from "../data/rides";
 import { hhmm, toMin, type DayPlan, type Step } from "../lib/planner";
@@ -58,6 +58,29 @@ export default function Parcours({ day, now, positions, waits, onTick, onSelect,
         .sort((a, b) => a.min - b.min)
         .slice(0, 6)
     : [];
+
+  /**
+   * Horaires qui viennent de changer. Un recalcul refait tout le parcours, mais à
+   * l'écran seule la ligne retirée bougeait visiblement : les nouvelles heures
+   * d'arrivée s'écrivaient sans que rien ne les distingue des anciennes.
+   */
+  const heuresPrec = useRef(new Map<number, number>());
+  const [rehausse, setRehausse] = useState<Set<number>>(new Set());
+  useEffect(() => {
+    const change = new Set<number>();
+    const suivant = new Map<number, number>();
+    for (const s of day.steps) {
+      if (s.kind !== "ride") continue;
+      suivant.set(s.ride.id, s.arrive);
+      const avant = heuresPrec.current.get(s.ride.id);
+      if (avant !== undefined && avant !== s.arrive) change.add(s.ride.id);
+    }
+    heuresPrec.current = suivant;
+    if (!change.size) return;
+    setRehausse(change);
+    const t = window.setTimeout(() => setRehausse(new Set()), 1500);
+    return () => window.clearTimeout(t);
+  }, [day.steps]);
 
   const minFile = rides.reduce((a, s) => a + s.wait, 0);
   const gagnees = rides.reduce((a, s) => a + s.saved, 0);
@@ -337,9 +360,10 @@ export default function Parcours({ day, now, positions, waits, onTick, onSelect,
           const num = order.get(s.ride.id);
           return (
             <motion.div layout key={"r" + s.ride.id}
-              className={["stop", s.mode === "gc" ? "gc" : "", current ? "now" : ""].filter(Boolean).join(" ")}
+              className={["stop", s.mode === "gc" ? "gc" : "", current ? "now" : "", rehausse.has(s.ride.id) ? "maj" : ""].filter(Boolean).join(" ")}
               style={{ ["--zh" as string]: zoneOf(s.ride.z).hue }}
-              initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+              initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, x: -28, height: 0, marginBottom: 0 }}
               transition={{ type: "spring", stiffness: 380, damping: 34 }}>
               <div className="hh">
                 <b className="mono">{hhmm(s.arrive)}</b>
