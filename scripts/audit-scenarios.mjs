@@ -316,7 +316,7 @@ await scenario("16. Le plafond de brassage est respecté", async (ouvrir, ko) =>
   return p;
 });
 
-await scenario("17. Jamais deux respirations d'affilée", async (ouvrir, ko) => {
+await scenario("17. Aucune respiration dans le parcours", async (ouvrir, ko) => {
   const p = await ouvrir({ heure: [9, 0] });
   await p.locator(".presets button", { hasText: "Sensations" }).click(); await p.waitForTimeout(500);
   // Estomac fragile : le plafond le plus bas, donc le cas où les pauses s'empilaient.
@@ -324,10 +324,9 @@ await scenario("17. Jamais deux respirations d'affilée", async (ouvrir, ko) => 
   await p.getByRole("button", { name: "Estomac fragile" }).click(); await p.waitForTimeout(400);
   await p.locator(".dock .cta, .pane button.cta").first().click(); await p.waitForTimeout(2100);
   const suite = await p.locator(".stop .stopcard h4").evaluateAll((ns) => ns.map((n) => n.textContent.trim()));
-  const doublons = suite.filter((n, i) => i > 0 && n === "Respiration" && suite[i - 1] === "Respiration").length;
-  if (doublons) ko(`${doublons} respirations consécutives`);
   const pauses = suite.filter((n) => n === "Respiration").length;
-  if (pauses > Math.ceil(suite.length / 3)) ko(`${pauses} respirations pour ${suite.length} étapes`);
+  if (pauses) ko(`${pauses} respirations posées d'office`);
+  if (!suite.length) ko("parcours vide");
   return p;
 });
 

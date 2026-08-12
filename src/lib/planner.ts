@@ -308,31 +308,26 @@ export function buildPlan({ day, snap: direct, pace, positions, walk, fromNow, r
 
     if (!best) {
       /**
-       * Une seule respiration, et de la bonne durée.
+       * Aucune attraction admissible : on laisse simplement le temps passer, sans
+       * écrire d'étape.
        *
-       * La pause était forfaitaire, entre dix et vingt minutes, sans garantie qu'elle
-       * fasse repasser quoi que ce soit sous le plafond : la boucle empilait alors
-       * « Respiration » sur « Respiration », ce qui n'a aucun sens sur le terrain. On
-       * calcule maintenant le temps qu'il faut pour que la plus douce des attractions
-       * restantes redevienne admissible, et on ne réessaie pas deux fois de suite.
+       * Les pauses « Respiration » posées d'office ont été retirées sur demande du
+       * terrain — on gère sa pause soi-même et on recalcule si besoin. Le plafond de
+       * brassage, lui, ne bouge pas : il continue d'écarter ce qui enchaîne trop, et
+       * le battement se lit dans l'écart entre deux horaires d'arrivée.
+       *
+       * Ce temps-là refroidit au rythme ordinaire, 0,55 par minute, et non au rythme
+       * d'une pause assise : on ne prescrit plus de terrasse, on ne peut donc pas la
+       * supposer. Compter 0,9 aurait fait passer le compteur au-dessus du plafond.
        */
-      const precedent = steps[steps.length - 1];
-      const dejaEnPause = precedent?.kind === "break" && precedent.name === "Respiration";
       const douce = Math.min(...left.map((r) => r.nau));
-      const besoin = Math.ceil((nausea - (day.tol - douce * 13)) / 0.9);
-      if (nausea > 0 && !dejaEnPause && besoin > 0) {
-        const p = Math.max(5, Math.min(45, besoin));
-        if (t + p >= end) break;
-        steps.push({
-          kind: "break", at: t, dur: p, name: "Respiration",
-          detail: `Compteur de brassage au plafond : ${p} min de terrasse et on repart`,
-          pos: { ...pos }
-        });
-        t += p;
-        nausea = Math.max(0, nausea - p * 0.9);
-        continue;
-      }
-      break;
+      const besoin = Math.ceil((nausea - (day.tol - douce * 13)) / 0.55);
+      if (nausea <= 0 || besoin <= 0) break;
+      const battement = Math.min(45, besoin);
+      if (t + battement >= end) break;
+      t += battement;
+      nausea = Math.max(0, nausea - battement * 0.55);
+      continue;
     }
 
     steps.push({

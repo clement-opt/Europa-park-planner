@@ -72,9 +72,15 @@ gratuite et fait le même travail. Le préréglage « Mix » applique déjà cet
 
 **Compteur de brassage.** Chaque attraction porte `nau` de 0 à 5. Le compteur monte de
 `nau * 13` après un tour, redescend de 0.55 par minute de marche et de file. Au-delà du
-plafond choisi, l'attraction est écartée et une pause ou une attraction calme est
-insérée. C'est la contrainte anti-nausée, c'est la raison d'être de l'app, ne pas la
+plafond choisi, l'attraction est écartée et le planificateur cherche une attraction plus
+calme. C'est la contrainte anti-nausée, c'est la raison d'être de l'app, ne pas la
 contourner pour gagner des minutes.
+
+**Aucune pause n'est écrite dans le parcours**, hormis le déjeuner que l'utilisateur
+règle lui-même. Quand plus rien n'est admissible, le planificateur laisse le temps
+passer sans poser d'étape : le battement se lit dans l'écart entre deux horaires
+d'arrivée. Consigne du terrain, 12/08/2026 — « il ne met pas de respiration point
+final » : la pause se gère sur place, et on recalcule si nécessaire.
 
 **Projection d'affluence.** L'API ne donne que l'instant présent. `CURVE` dans
 `planner.ts` estime l'attente à l'heure d'arrivée réelle. C'est une heuristique assumée,

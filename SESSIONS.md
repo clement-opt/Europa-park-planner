@@ -24,12 +24,19 @@ Retirer ou ajouter une attraction ne changeait plus rien à l'écran. Les deux p
 partant maintenant de la même heure, une baisse est légitime : on ne retient plus que
 le cas catastrophique, plus une seule attraction placée alors qu'il en reste.
 
-**« Respiration » à répétition.** La pause était forfaitaire, dix à vingt minutes, sans
-garantie de faire repasser quoi que ce soit sous le plafond de brassage : la boucle
-empilait alors les pauses. La durée est maintenant **calculée** pour que la plus douce
-des attractions restantes redevienne admissible, et on ne réessaie pas deux fois de
-suite. La contrainte anti-nausée est inchangée — c'est la raison d'être de l'app —,
-c'est sa mise en scène qui était absurde.
+**Plus aucune « Respiration ».** La pause était forfaitaire et sans garantie de faire
+repasser quoi que ce soit sous le plafond, si bien que la boucle les empilait. Après une
+première correction — durée calculée, jamais deux d'affilée — la consigne du terrain a
+tranché : *« il ne met pas de respiration point final »*. Le planificateur laisse
+désormais le temps passer sans écrire d'étape, et le battement se lit dans l'écart entre
+deux horaires d'arrivée. La contrainte anti-nausée est inchangée, c'est la raison d'être
+de l'app ; c'est sa mise en scène qui disparaît. `CLAUDE.md` enregistre la règle et sa
+source.
+
+Ce retrait a fait apparaître une incohérence de taux : le battement refroidissait au
+rythme d'une pause assise (0,9/min) alors qu'on ne prescrit plus de terrasse. Ramené au
+rythme ordinaire (0,55/min) — le scénario 16 l'a attrapé, compteur à 89 pour un plafond
+à 65.
 
 **Le reliquat devient une liste.** Ce qui n'entre pas dans la journée se met de côté
 d'un bouton, depuis le bilan de fin de parcours, déverrouillé et prêt à être chargé sur
