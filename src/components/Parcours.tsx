@@ -174,6 +174,23 @@ export default function Parcours({ day, now, positions, waits, onTick, onSelect,
         </div>
       </div>
 
+      {/*
+        L'attraction imposée en ouverture était écartée sans un mot quand le relevé la
+        disait fermée : l'étoile restait allumée, une autre attraction ouvrait le
+        parcours, et rien n'expliquait pourquoi.
+      */}
+      {day.first != null && BY_ID[day.first] && !done.has(day.first)
+        && !rides.some((s) => s.ride.id === day.first) && (
+        <div className="warn">
+          <b>{BY_ID[day.first].n} est imposée en ouverture</b>, mais elle n'a pas pu être placée :{" "}
+          {!day.sel.includes(day.first)
+            ? "elle ne fait plus partie de votre sélection."
+            : waits[day.first] < 0
+              ? "elle est relevée fermée en ce moment. Recalculez sur place une fois le parc ouvert."
+              : "le parcours n'a pas trouvé où la caser."}
+        </div>
+      )}
+
       {previsionnel && (
         <div className="warn">
           <b>Parc fermé en ce moment</b> : ce parcours est prévisionnel. Les attentes viennent

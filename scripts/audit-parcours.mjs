@@ -35,25 +35,28 @@ for (const s of [{n:"390",w:390,h:844},{n:"430",w:430,h:932},{n:"820",w:820,h:11
   await p.locator(".dock .cta, .pane button.cta").first().click();
   await p.waitForTimeout(1700);
   await of("parcours");
-  const n0 = await p.locator(".stop").count();
+  const n0 = await p.locator(".stop .act.fait").count();
   if (!n0) bad.push(`${s.n} aucun itinéraire calculé`);
 
-  // étape faite : une seule sort, les autres remontent. Vérifier « moins qu'avant »
-  // ne suffisait pas — un parcours vidé d'un coup passait le test.
+  // Étape faite : une seule sort, les autres remontent. L'invariant n'est pas
+  // « exactement une de moins » — une replanification acceptée peut en recaser
+  // davantage — mais « jamais moins ». Vérifier « moins qu'avant », comme le faisait
+  // ce test, laissait passer un parcours vidé d'un coup.
   await p.locator(".nextup .go").click(); await p.waitForTimeout(1600);
-  const n1 = await p.locator(".stop").count();
-  if (n1 !== n0 - 1) bad.push(`${s.n} validation : ${n0}->${n1}, attendu ${n0 - 1}`);
+  const n1 = await p.locator(".stop .act.fait").count();
+  if (n1 < n0 - 1) bad.push(`${s.n} validation : ${n0}->${n1} attractions, ${n0 - 1 - n1} perdues`);
 
-  // retrait d'une étape
+  // Retrait : celle qu'on enlève sort, les autres restent.
   await p.locator(".stop .act.retirer").first().click(); await p.waitForTimeout(1500);
-  const n2 = await p.locator(".stop").count();
+  const n2 = await p.locator(".stop .act.fait").count();
+  if (n2 < n1 - 1) bad.push(`${s.n} retrait : ${n1}->${n2} attractions, ${n1 - 1 - n2} perdues`);
   
 
   // ajout en cours de route
   await p.getByRole("button",{name:/Ajouter une attraction/}).click(); await p.waitForTimeout(400);
   const dispo = await p.locator(".card .row .ghost").count();
   if (dispo) { await p.locator(".card .row .ghost").first().click(); await p.waitForTimeout(1500); }
-  const n3 = await p.locator(".stop").count();
+  const n3 = await p.locator(".stop .act.fait").count();
   
   await of("apres-ajout");
 
@@ -68,7 +71,7 @@ for (const s of [{n:"390",w:390,h:844},{n:"430",w:430,h:932},{n:"820",w:820,h:11
   const th = await p.evaluate(()=>document.documentElement.getAttribute("data-theme"));
   if (th!=="light") bad.push(`${s.n} bascule de thème KO (${th})`);
   const contrast = await p.evaluate(()=>getComputedStyle(document.body).backgroundColor);
-  ok.push(`${s.n}: ${n0}→${n1}→${n2}→${n3} étapes, thème ${th}, fond ${contrast}`);
+  ok.push(`${s.n}: ${n0}→${n1}→${n2}→${n3} attractions, thème ${th}, fond ${contrast}`);
   if (errs.length) bad.push(`${s.n} erreurs: ${[...new Set(errs)].slice(0,2).join(" | ")}`);
   await ctx.close();
 }
@@ -88,18 +91,18 @@ for (const s of [{n:"390",w:390,h:844},{n:"430",w:430,h:932},{n:"820",w:820,h:11
   await p.goto(URL,{waitUntil:"load"}); await p.waitForTimeout(3400);
   await p.getByRole("button",{name:/^Mix$/}).click(); await p.waitForTimeout(400);
   await p.locator(".dock .cta, .pane button.cta").first().click(); await p.waitForTimeout(1700);
-  const avant = await p.locator(".stop").count();
+  const avant = await p.locator(".stop .act.fait").count();
 
   await p.clock.setFixedTime(a(20,5));            // après la fin de journée (20:00)
   await p.locator(".nextup .go").click(); await p.waitForTimeout(1600);
-  const apres = await p.locator(".stop").count();
-  ok.push(`fin de journée : ${avant} étapes à 10 h 00, ${apres} après validation à 20 h 05`);
+  const apres = await p.locator(".stop .act.fait").count();
+  ok.push(`fin de journée : ${avant} attractions à 10 h 00, ${apres} après validation à 20 h 05`);
   if (!avant) bad.push("fin de journée : aucun parcours de départ, test non concluant");
-  else if (apres !== avant - 1) bad.push(`fin de journée : ${avant}->${apres} après validation, attendu ${avant-1}`);
+  else if (apres < avant - 1) bad.push(`fin de journée : ${avant}->${apres} après validation, ${avant-1-apres} perdues`);
 
   await p.locator(".stop .act.retirer").first().click(); await p.waitForTimeout(1500);
-  const apresRetrait = await p.locator(".stop").count();
-  if (avant && apresRetrait !== avant - 2) bad.push(`fin de journée : retrait ${apres}->${apresRetrait}, attendu ${avant-2}`);
+  const apresRetrait = await p.locator(".stop .act.fait").count();
+  if (avant && apresRetrait < apres - 1) bad.push(`fin de journée : retrait ${apres}->${apresRetrait}, ${apres-1-apresRetrait} perdues`);
   await ctx.close();
 }
 
@@ -121,11 +124,22 @@ for (const s of [{n:"390",w:390,h:844},{n:"430",w:430,h:932},{n:"820",w:820,h:11
   await p.goto(URL,{waitUntil:"load"}); await p.waitForTimeout(3600);
   await p.getByRole("button",{name:/^Mix$/}).click(); await p.waitForTimeout(400);
   await p.locator(".dock .cta, .pane button.cta").first().click(); await p.waitForTimeout(1800);
-  const n = await p.locator(".stop").count();
+  const n = await p.locator(".stop .act.fait").count();
   const avertit = await p.getByText(/Parc fermé en ce moment/).count();
-  ok.push(`parc fermé (${ids.length} attractions) : ${n} étapes préparées, avertissement ${avertit ? "affiché" : "absent"}`);
+  ok.push(`parc fermé (${ids.length} attractions) : ${n} placées, avertissement ${avertit ? "affiché" : "absent"}`);
   if (!n) bad.push("parc fermé : aucun parcours préparé alors qu'on planifie à l'avance");
   if (!avertit) bad.push("parc fermé : parcours prévisionnel non signalé");
+
+  // Attraction imposée alors que le relevé la dit fermée : c'est le cas signalé sur le
+  // terrain. Elle doit ouvrir le parcours, pas être écartée en silence.
+  await p.getByRole("tab",{name:/^Attractions/}).click(); await p.waitForTimeout(500);
+  await p.locator("summary",{hasText:"France"}).first().click(); await p.waitForTimeout(400);
+  const etoile = p.getByRole("button",{name:"Commencer la journée par Silver Star"});
+  await etoile.scrollIntoViewIfNeeded(); await etoile.click(); await p.waitForTimeout(400);
+  await p.locator(".dock .cta, .pane button.cta").first().click(); await p.waitForTimeout(2000);
+  const premiere = await p.locator(".nextup h4").textContent().catch(() => "(aucune)");
+  ok.push(`attraction imposée fermée : le parcours commence par « ${premiere} »`);
+  if (premiere !== "Silver Star") bad.push(`attraction imposée : « ${premiere} » en tête au lieu de Silver Star`);
   await ctx.close();
 }
 

@@ -381,7 +381,11 @@ export default function App() {
 
   const onSelect = useCallback((id: number) => {
     setDay(day.sel.includes(id)
-      ? { sel: day.sel.filter((x) => x !== id), gc: day.gc.filter((x) => x !== id), vl: day.vl.filter((x) => x !== id) }
+      // Décocher l'attraction d'ouverture doit aussi lever la contrainte : sinon
+      // `first` désignait une attraction absente de la sélection, et le planificateur
+      // l'ignorait en silence — l'étoile restait allumée sans plus rien imposer.
+      ? { sel: day.sel.filter((x) => x !== id), gc: day.gc.filter((x) => x !== id),
+          vl: day.vl.filter((x) => x !== id), first: day.first === id ? null : day.first }
       : { sel: [...day.sel, id] });
   }, [day, setDay]);
 

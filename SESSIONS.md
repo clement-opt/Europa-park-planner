@@ -9,6 +9,40 @@ git le fait déjà. On y écrit ce que git ne dit pas — pourquoi, et où on s'
 
 ---
 
+## Session 19 — 12/08/2026 · L'attraction imposée était écartée en silence
+
+**Signalé du terrain : l'étoile sur Silver Star, et une autre attraction en tête.**
+La collecte donne la réponse — Silver Star est relevée **fermée** sur 57 des 72
+dernières heures, la dernière fois à 06 h 50 UTC, avant l'ouverture. Or le bloc
+« attraction imposée » est gardé par `left.includes(forced)`, et `left` écarte les
+attractions fermées. L'étoile restait allumée, la contrainte disparaissait, et rien
+ne le disait.
+
+Le correctif de la session 18 traite déjà le cas de fond : en planification à
+l'avance, une attraction fermée maintenant redevient candidate. Restaient les
+silences, tous corrigés :
+
+- Un bandeau nomme l'attraction imposée qui n'a pas pu être placée, et donne la
+  raison : hors sélection, relevée fermée, ou sans place trouvée.
+- **Décocher l'attraction d'ouverture ne levait pas la contrainte.** `first` désignait
+  alors une attraction absente de `sel`, que le planificateur ignorait sans un mot —
+  l'étoile restait allumée sans plus rien imposer. `onRemove` nettoyait déjà `first`,
+  `onSelect` non.
+
+**Constaté — le test se trompait deux fois, dans les deux sens.**
+
+- Il comptait `.stop`, classe partagée par les attractions **et** les pauses. Une
+  replanification qui redistribue les respirations passait pour une perte
+  d'attractions. Il compte maintenant les lignes qui portent le bouton « Fait ».
+- L'assertion « exactement une de moins » après validation était fausse : une
+  replanification acceptée peut en **recaser davantage** qu'il n'y en avait. Le bon
+  invariant est « jamais moins ». Écrit ainsi, il attrape le vrai défaut — la
+  disparition — sans se déclencher sur une optimisation légitime. Les deux versions
+  précédentes de ce test étaient chacune fausses d'un côté : trop lâche hier, trop
+  stricte ce matin.
+- Un `<details>` fermé sort de l'arbre d'accessibilité : l'étoile d'une attraction
+  n'existe ni pour le clavier ni pour le test tant que son pays est replié.
+
 ## Session 18 — 11/08/2026 · Préparer un parcours quand le parc est fermé
 
 **On ne pouvait pas organiser sa journée le soir.** `buildPlan` écartait toute
