@@ -231,6 +231,10 @@ input[type="range"] { width: 100%; accent-color: var(--rail); height: 46px; }
 }
 .ghost:hover { border-color: var(--rail); }
 .ghost[aria-pressed="true"] { background: var(--rail); border-color: var(--rail); color: var(--on-rail); }
+/* Ce qui est fait : replié par défaut, mais retrouvable. */
+.sect.faites { margin-top: 16px; }
+.sect.faites .lot b { text-decoration: line-through; text-decoration-thickness: 1px; opacity: .75; }
+
 /* Horaire qui vient de changer : sans marquage, un recalcul complet passe inaperçu. */
 @keyframes maj {
   from { background: color-mix(in oklab, var(--rail) 26%, var(--card)); }

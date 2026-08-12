@@ -21,6 +21,19 @@ lots enregistrés compris. Seul le déjeuner, réglé par l'utilisateur, subsist
 C'est la même leçon qu'à la session 21 : l'état persiste plus longtemps que le code.
 Retirer une règle ne suffit pas, il faut nettoyer ce qu'elle a laissé derrière elle.
 
+**Le retour en haut ne sert plus qu'au calcul complet.** Il avait été demandé pour la
+régénération, puis appliqué partout : valider une étape en lisant la liste emportait
+l'écran en haut, et l'animation se jouait hors champ. Deux gestes, deux sorties :
+l'étape validée **jaillit vers le haut**, l'étape retirée glisse sur le côté. Le geste
+est mémorisé dans le composant, `AnimatePresence` figeant les propriétés de l'élément
+au moment où il quitte la liste.
+
+**Ce qui est fait se retrouve.** Une attraction cochée sortait du parcours et n'était
+plus visible que dans l'onglet Attractions, enfouie dans un pays replié — on ne
+retrouvait pas ce qu'on venait de faire. Un bloc « Déjà faites » les liste dans l'ordre
+où elles ont été cochées, avec le joker consommé s'il y en a un, et de quoi défaire un
+appui malheureux.
+
 **Le retrait d'une étape se voit enfin.** L'animation existait, mais `replan` appelait
 `remonter()` : on retirait une étape au milieu de la liste et l'écran sautait en haut,
 si bien que la disparition et la remontée des suivantes se jouaient hors champ. Le

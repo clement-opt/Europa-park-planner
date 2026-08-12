@@ -424,9 +424,11 @@ export default function App() {
     if (doneKey === lastDone.current) return;
     lastDone.current = doneKey;
     if (!snap || !day.steps.length) return;
+    // Pas de retour en haut : on valide une étape en regardant la liste, et sauter en
+    // haut emportait l'écran loin de l'endroit qu'on lisait, animation comprise.
+    // Le retour en haut ne sert plus qu'au calcul complet, qui remplace tout.
     setDay({ steps: replanifier(day) });
-    remonter();
-  }, [doneKey, snap, day, setDay, replanifier, remonter]);
+  }, [doneKey, snap, day, setDay, replanifier]);
 
   /**
    * Le tracé dessiné suit les mêmes allées que les temps de marche.

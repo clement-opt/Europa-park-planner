@@ -5,7 +5,7 @@ import { hhmm, toMin, type DayPlan, type Step } from "../lib/planner";
 import { ME_KEY, walkFromMatrix, type LatLng, type WalkMatrix } from "../lib/geo";
 import { geoLabel, type GeoState } from "../lib/position";
 import ParkMap from "./ParkMap";
-import { Check, Pass, Star } from "./icons";
+import { Check, Chevron, Pass, Star } from "./icons";
 
 type RideStep = Extract<Step, { kind: "ride" }>;
 
@@ -37,6 +37,12 @@ type Props = {
 
 export default function Parcours({ day, now, positions, waits, onTick, onSelect, compute, graphOk, osmCount, active, planning, onRemove, onAdd, me, geoState, onGeo, walk, pace, legs, journeeFinie, previsionnel, onReliquat, onProlonger }: Props) {
   const [adding, setAdding] = useState(false);
+  /**
+   * Quel geste a fait sortir l'étape. `AnimatePresence` fige les propriétés de
+   * l'élément au moment où il quitte la liste : on ne peut pas décider de l'animation
+   * depuis l'étape elle-même, puisqu'elle n'est plus rendue. On retient donc le geste.
+   */
+  const [geste, setGeste] = useState<"fait" | "retire">("fait");
   const [fiche, setFiche] = useState<number | null>(null);
   const done = new Set(day.done);
 
@@ -119,7 +125,7 @@ export default function Parcours({ day, now, positions, waits, onTick, onSelect,
               )}
               <div className="row" style={{ marginTop: 14, marginBottom: 0 }}>
                 <button className="ghost" style={{ flex: 1 }}
-                  onClick={() => { dedans ? onRemove(r.id) : onAdd(r.id); setFiche(null); }}>
+                  onClick={() => { setGeste("retire"); dedans ? onRemove(r.id) : onAdd(r.id); setFiche(null); }}>
                   {dedans ? "Retirer du parcours" : "Ajouter au parcours"}
                 </button>
                 <button className="ghost" onClick={() => setFiche(null)}>Fermer</button>
@@ -183,7 +189,7 @@ export default function Parcours({ day, now, positions, waits, onTick, onSelect,
             file {next.wait} min{next.mode === "gc" ? " avec le joker" : next.mode === "vl" ? " en VirtualLine" : ""}
           </p>
           <p style={{ marginTop: 8 }}>{next.ride.plus}</p>
-          <button className="go" onClick={(e) => onTick(next.ride.id, e)}>
+          <button className="go" onClick={(e) => { setGeste("fait"); onTick(next.ride.id, e); }}>
             <Check /> Étape faite, on passe à la suivante
           </button>
         </div>
@@ -334,6 +340,39 @@ export default function Parcours({ day, now, positions, waits, onTick, onSelect,
         );
       })()}
 
+      {/*
+        Ce qu'on a fait ne se retrouvait nulle part : l'étape sort du parcours, et dans
+        l'onglet Attractions elle est enfouie dans un pays replié. On la relit ici, dans
+        l'ordre où elle a été cochée, avec de quoi défaire un appui malheureux.
+      */}
+      {day.done.length > 0 && (
+        <details className="sect faites">
+          <summary>
+            <span className="t">Déjà faites</span>
+            <em>{day.done.length}</em>
+            <Chevron />
+          </summary>
+          <div className="inner">
+            {day.done.map((id, i) => BY_ID[id] && (
+              <div className="lot" key={id}>
+                <div>
+                  <b>{i + 1}. {BY_ID[id].n}</b>
+                  <small>
+                    {zoneOf(BY_ID[id].z).flag} {BY_ID[id].z}
+                    {day.gc.includes(id) ? " · joker consommé" : ""}
+                  </small>
+                </div>
+                <div className="sp">
+                  <button className="ghost" onClick={() => { setGeste("retire"); onTick(id); }}>
+                    Remettre à faire
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </details>
+      )}
+
       {!live.length ? (
         <div className="card"><div className="empty">
           <b>Pas encore d'itinéraire</b>
@@ -363,7 +402,9 @@ export default function Parcours({ day, now, positions, waits, onTick, onSelect,
               className={["stop", s.mode === "gc" ? "gc" : "", current ? "now" : "", rehausse.has(s.ride.id) ? "maj" : ""].filter(Boolean).join(" ")}
               style={{ ["--zh" as string]: zoneOf(s.ride.z).hue }}
               initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, x: -28, height: 0, marginBottom: 0 }}
+              exit={geste === "fait"
+                ? { opacity: 0, scale: 1.08, y: -18, height: 0, marginBottom: 0 }
+                : { opacity: 0, x: -30, height: 0, marginBottom: 0 }}
               transition={{ type: "spring", stiffness: 380, damping: 34 }}>
               <div className="hh">
                 <b className="mono">{hhmm(s.arrive)}</b>
@@ -395,11 +436,11 @@ export default function Parcours({ day, now, positions, waits, onTick, onSelect,
                   l'abandonne. Sans libellé, le geste était un pari.
                 */}
                 <div className="stopacts">
-                  <button className="act fait" onClick={(e) => onTick(s.ride.id, e)}
+                  <button className="act fait" onClick={(e) => { setGeste("fait"); onTick(s.ride.id, e); }}
                     aria-label={`Marquer ${s.ride.n} comme faite`}>
                     <Check /><span>Fait</span>
                   </button>
-                  <button className="act retirer" onClick={() => onRemove(s.ride.id)}
+                  <button className="act retirer" onClick={() => { setGeste("retire"); onRemove(s.ride.id); }}
                     aria-label={`Retirer ${s.ride.n} du parcours`}>
                     <span aria-hidden="true">✕</span><span>Retirer</span>
                   </button>

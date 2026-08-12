@@ -381,6 +381,35 @@ await scenario("20. Retrait : l'écran ne saute pas, les horaires se signalent",
   return p;
 });
 
+await scenario("21. Validation : l'écran reste en place et les faites se retrouvent", async (ouvrir, ko) => {
+  const p = await ouvrir({ heure: [10, 0] });
+  await planMix(p);
+  await p.locator(".stop").nth(4).scrollIntoViewIfNeeded();
+  await p.waitForTimeout(400);
+  const avant = await p.evaluate(() => window.scrollY || document.scrollingElement.scrollTop);
+  if (avant < 40) ko("impossible de faire défiler la liste, test non concluant");
+  const nom = await p.locator(".stop").nth(3).locator(".stopcard h4").innerText();
+  await p.locator(".stop").nth(3).locator(".act.fait").click();
+  await p.waitForTimeout(1700);
+  const apres = await p.evaluate(() => window.scrollY || document.scrollingElement.scrollTop);
+  if (apres < avant / 3) ko(`l'écran est remonté de ${Math.round(avant)} à ${Math.round(apres)}`);
+
+  // Elle doit se retrouver, et pouvoir revenir.
+  const bloc = p.locator(".sect.faites");
+  if (!(await bloc.count())) return ko("aucun récapitulatif des attractions faites"), p;
+  await bloc.locator("summary").click(); await p.waitForTimeout(400);
+  const listees = await bloc.locator(".lot b").evaluateAll((ns) => ns.map((n) => n.textContent.trim()));
+  // Le titre d'une étape colle son numéro devant et ses badges derrière : on compare
+  // le nom listé, lui, propre, à ce qu'il contient.
+  if (!listees.map((l) => l.replace(/^\d+\.\s*/, "")).some((l) => l && nom.includes(l))) {
+    ko(`« ${nom} » introuvable dans les faites (${listees.join(", ") || "vide"})`);
+  }
+  await bloc.getByRole("button", { name: "Remettre à faire" }).first().click();
+  await p.waitForTimeout(1600);
+  if (await p.locator(".sect.faites").count()) ko("le récapitulatif persiste alors qu'il n'y a plus rien de fait");
+  return p;
+});
+
 await B.close();
 
 const rates = resultats.filter((r) => r.echecs.length);
