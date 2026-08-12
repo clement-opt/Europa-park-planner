@@ -231,6 +231,12 @@ input[type="range"] { width: 100%; accent-color: var(--rail); height: 46px; }
 }
 .ghost:hover { border-color: var(--rail); }
 .ghost[aria-pressed="true"] { background: var(--rail); border-color: var(--rail); color: var(--on-rail); }
+/* Liste en cours : celle dont la sélection est à l'écran. */
+.lot.active {
+  border-color: var(--rail);
+  background: color-mix(in oklab, var(--rail) 10%, transparent);
+}
+
 /* Bouton armé : une action irréversible se signale avant qu'on la confirme. */
 .ghost.arme, .lk.arme {
   border-color: var(--stop);

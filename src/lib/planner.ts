@@ -9,7 +9,25 @@ export type Step =
 /** Quand placer les attractions aquatiques, et comment répartir les grosses sensations. */
 export type Shape = { wet: "am" | "pm" | "any"; vif: "front" | "even" | "back" };
 
-export type Lot = { id: string; name: string; ids: number[]; gc: number[]; vl: number[]; locked: boolean };
+/**
+ * Une liste enregistrée, et le parcours qui va avec.
+ *
+ * Le lot ne portait que la sélection : appliqué, il laissait derrière lui l'attraction
+ * d'ouverture et les coches « déjà faite » du programme précédent, qui retiraient en
+ * silence des attractions du nouveau parcours. Il emporte désormais tout ce qui décrit
+ * un programme — l'ouverture imposée et l'itinéraire calculé compris — pour qu'en
+ * choisir un reparte d'un état propre et complet.
+ */
+export type Lot = {
+  id: string;
+  name: string;
+  ids: number[];
+  gc: number[];
+  vl: number[];
+  locked: boolean;
+  first?: number | null;
+  steps?: Step[];
+};
 
 export type DayPlan = {
   sel: number[];

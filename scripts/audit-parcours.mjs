@@ -195,6 +195,63 @@ for (const s of [{n:"390",w:390,h:844},{n:"430",w:430,h:932},{n:"820",w:820,h:11
 }
 
 /**
+ * Listes enregistrées. Une liste emporte sa sélection, son attraction d'ouverture et
+ * son parcours ; la charger repart de cet état, sans les coches « déjà faite » du
+ * programme qu'on quitte — ce sont elles qui avaient fait disparaître l'attraction
+ * d'ouverture d'un parcours tout neuf.
+ */
+{
+  const bloc = readFileSync("src/data/rides.ts", "utf8").match(/export const SNAPSHOT[\s\S]*?\n};/)[0];
+  const ids = [...bloc.matchAll(/(\d{4,}):\s*\d+/g)].map((m) => Number(m[1]));
+  const ctx = await B.newContext({ viewport:{width:390,height:844} });
+  const p = await ctx.newPage();
+  // Un <details> replié sort de l'arbre d'accessibilité : on ouvre tout avant de cliquer.
+  const ouvrirTout = () => p.evaluate(() => document.querySelectorAll("details").forEach((d) => (d.open = true)));
+  await p.route(/rpc\/ep_waits/, (r) => r.fulfill({
+    status: 200, contentType: "application/json",
+    body: JSON.stringify({ at: new Date().toISOString(), vl: {},
+      rides: Object.fromEntries(ids.map((id) => [id, { wait: 12, open: true }])) })
+  }));
+  await p.goto(URL,{waitUntil:"load"}); await p.waitForTimeout(3600);
+
+  await p.getByRole("button",{name:/^Mix$/}).click(); await p.waitForTimeout(400);
+  await ouvrirTout(); await p.waitForTimeout(300);
+  const et = p.getByRole("button",{name:"Commencer la journée par Silver Star"});
+  await et.scrollIntoViewIfNeeded(); await et.click(); await p.waitForTimeout(300);
+  await p.locator(".dock .cta, .pane button.cta").first().click(); await p.waitForTimeout(1900);
+
+  await p.getByRole("tab",{name:/^Attractions/}).click(); await p.waitForTimeout(400);
+  await ouvrirTout(); await p.waitForTimeout(300);
+  await p.getByLabel("Nom de la liste à enregistrer").fill("Jour 1 sensations");
+  await p.getByRole("button",{name:"Enregistrer"}).click(); await p.waitForTimeout(600);
+  const resume = await p.locator(".lot small").first().innerText();
+  ok.push(`liste enregistrée : ${resume.replace(/\s+/g," ")}`);
+  if (!/parcours enregistré/.test(resume)) bad.push("liste : le parcours n'est pas embarqué");
+  if (!/ouvre sur Silver Star/.test(resume)) bad.push("liste : l'attraction d'ouverture n'est pas embarquée");
+  if (await p.locator(".lot.active").count() !== 1) bad.push("liste : celle en cours n'est pas signalée");
+
+  // On salit : trois étapes validées, puis une autre sélection.
+  await p.getByRole("tab",{name:/^Parcours/}).click(); await p.waitForTimeout(400);
+  for (let i = 0; i < 3; i++) { await p.locator(".nextup .go").click(); await p.waitForTimeout(900); }
+  await p.getByRole("tab",{name:/^Attractions/}).click(); await p.waitForTimeout(400);
+  await ouvrirTout(); await p.waitForTimeout(300);
+  await p.getByRole("button",{name:"Déverrouiller"}).click(); await p.waitForTimeout(300);
+  await p.getByRole("button",{name:/^Tout doux$/}).click(); await p.waitForTimeout(600);
+  await ouvrirTout(); await p.waitForTimeout(300);
+  if (await p.locator(".lot.active").count()) bad.push("liste : encore signalée en cours après changement de sélection");
+
+  // On la recharge : état complet, et rien du programme précédent.
+  await p.getByRole("button",{name:"Charger"}).click(); await p.waitForTimeout(900);
+  const restes = await p.getByText(/comme déjà faites?\s*:/).count();
+  if (restes) bad.push("liste rechargée : des coches « déjà faite » ont survécu");
+  await p.getByRole("tab",{name:/^Parcours/}).click(); await p.waitForTimeout(800);
+  const tete = await p.locator(".nextup h4").textContent().catch(() => "(aucune)");
+  ok.push(`liste rechargée : tête « ${tete} », ${restes} reste${restes > 1 ? "s" : ""} de coches`);
+  if (tete !== "Silver Star") bad.push(`liste rechargée : « ${tete} » en tête au lieu de Silver Star`);
+  await ctx.close();
+}
+
+/**
  * Actions irréversibles : un seul geste effaçait la sélection entière du jour, sans
  * confirmation ni retour arrière. Le premier tap doit armer, le second seul exécuter.
  */

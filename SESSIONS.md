@@ -9,6 +9,39 @@ git le fait déjà. On y écrit ce que git ne dit pas — pourquoi, et où on s'
 
 ---
 
+## Session 21 — 12/08/2026 · Sept coches de la veille
+
+**Le vrai coupable, lu dans l'état serveur du séjour.** `first` valait bien 5604,
+Silver Star, sur le jour actif — mais elle figurait parmi **sept attractions cochées
+« déjà faites »**, à 9 h 12, douze minutes après l'ouverture du parc. Des essais de la
+veille, jamais remis à zéro. Le planificateur avait raison de ne plus l'imposer ; le
+défaut était de n'en rien dire, l'étoile restant allumée.
+
+Ni l'étoile ni le cache n'étaient en cause. Trois sessions passées à corriger des
+défauts réels mais secondaires, faute d'avoir regardé l'état plutôt que le code.
+
+**Ce qui change**
+
+- Le parcours écrit l'état de l'ouverture imposée dans **tous** les cas, avec un bouton
+  pour remettre l'attraction à faire. Aucun bandeau ne se déclenchait quand l'étoile
+  n'était pas posée : rien ne distinguait « pas imposée » de « imposée puis ignorée ».
+- Les réglages du jour récapitulent les attractions cochées faites, avec un bouton pour
+  toutes les remettre à faire.
+- La version de build et un bouton « Forcer la mise à jour » sont affichés : le service
+  worker ressert la version précédente tant que l'app n'a pas été fermée, et rien à
+  l'écran ne distinguait les deux.
+
+**Les listes enregistrées deviennent l'unité de programme** — demandé pour éviter que
+ce genre d'incident se reproduise. Une liste emporte désormais la sélection, les
+jokers, les VirtualLine, **l'attraction d'ouverture et le parcours calculé**. La
+charger repart de cet état complet et **vide les coches « déjà faite »** : ce sont
+elles qui appartenaient au programme qu'on quitte. La liste dont la sélection est à
+l'écran est signalée « en cours » et se réenregistre d'un bouton.
+
+L'état actif est **déduit** de la sélection, jamais stocké : un drapeau posé à
+l'application se serait périmé au premier changement, et c'est exactement la famille de
+défaut qu'on essaie d'éteindre.
+
 ## Session 20 — 12/08/2026 · Une consigne n'est pas une candidate
 
 **Sur place, à 9 h 03, parc ouvert, Swiss Bob Run en tête malgré l'étoile.** Les

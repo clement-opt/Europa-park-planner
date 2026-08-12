@@ -65,15 +65,37 @@ export const newLot = (name: string, day: DayPlan): Lot => ({
   ids: [...day.sel],
   gc: [...day.gc],
   vl: [...day.vl],
-  locked: true
+  locked: true,
+  first: day.first,
+  steps: day.steps
 });
 
-/** Applique un lot au jour courant. Les attractions déjà faites sont conservées. */
+/** Réenregistre un lot sur l'état courant, en gardant son identité et son nom. */
+export const updateLot = (lot: Lot, day: DayPlan): Lot => ({
+  ...lot,
+  ids: [...day.sel],
+  gc: [...day.gc],
+  vl: [...day.vl],
+  first: day.first,
+  steps: day.steps
+});
+
+/**
+ * Applique un lot au jour courant.
+ *
+ * Les coches « déjà faite » ne sont **pas** reprises : elles appartiennent au programme
+ * qu'on quitte. Les garder avait fait disparaître l'attraction d'ouverture d'un
+ * parcours tout neuf — elle traînait dans `done` depuis des essais de la veille, et
+ * plus rien ne la plaçait. Choisir un lot, c'est repartir de sa liste, telle qu'elle a
+ * été enregistrée.
+ */
 export const applyLot = (lot: Lot, day: DayPlan): Partial<DayPlan> => ({
-  sel: [...new Set([...lot.ids, ...day.done])],
+  sel: [...lot.ids],
   gc: lot.gc.filter((id) => lot.ids.includes(id)),
   vl: lot.vl.filter((id) => lot.ids.includes(id)),
-  steps: []
+  first: lot.first != null && lot.ids.includes(lot.first) ? lot.first : null,
+  done: [],
+  steps: lot.steps ?? []
 });
 
 /* ---- exports --------------------------------------------------------- */

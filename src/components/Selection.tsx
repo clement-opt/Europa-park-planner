@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { BY_ID, RIDES, tagsOf, zoneOf, type Ride } from "../data/rides";
-import { applyLot, newLot } from "../lib/storage";
+import { applyLot, newLot, updateLot } from "../lib/storage";
 import type { DayPlan, Lot } from "../lib/planner";
 import type { Horaire } from "../lib/sync";
 import Section from "./Section";
@@ -67,7 +67,7 @@ export default function Selection({ day, setDay, waits, pace, setPace, toast, sp
     list.includes(id) ? list.filter((x) => x !== id) : [...list, id];
 
   const onSelect = (id: number) => {
-    if (locked) return toast("Lot verrouillé : déverrouillez pour modifier la sélection");
+    if (locked) return toast("Liste verrouillée : déverrouillez pour modifier la sélection");
     if (sel.has(id)) {
       setDay({
         sel: day.sel.filter((x) => x !== id),
@@ -103,7 +103,7 @@ export default function Selection({ day, setDay, waits, pace, setPace, toast, sp
   };
 
   const preset = (kind: "mix" | "thrill" | "chill" | "none") => {
-    if (locked) return toast("Lot verrouillé : déverrouillez pour changer");
+    if (locked) return toast("Liste verrouillée : déverrouillez pour changer");
     if (kind === "none") return setDay({ sel: [], gc: [], vl: [], first: null, steps: [] });
     const pick = new Set<number>();
     if (kind === "thrill") RIDES.filter((r) => r.thr >= 4).forEach((r) => pick.add(r.id));
@@ -124,7 +124,7 @@ export default function Selection({ day, setDay, waits, pace, setPace, toast, sp
     if (!day.sel.length) return toast("Rien à enregistrer");
     setDay({ lots: [...day.lots, newLot(lotName, day)] });
     setLotName("");
-    toast("Lot enregistré et verrouillé");
+    toast("Liste enregistrée et verrouillée");
   };
 
   const setLots = (lots: Lot[]) => setDay({ lots });
@@ -278,36 +278,56 @@ export default function Selection({ day, setDay, waits, pace, setPace, toast, sp
         </p>
       </Section>
 
-      <Section title={<><Lock />Lots d'attractions</>} badge={day.lots.length}>
+      <Section title={<><Lock />Listes enregistrées</>} badge={day.lots.length}>
         <p className="note" style={{ marginBottom: 12 }}>
-          Un lot fige une sélection pour comparer plusieurs parcours. Verrouillé, seules les attractions
-          faites se cochent encore.
+          Une liste enregistre les attractions, les jokers, l'attraction d'ouverture <b>et son
+          parcours</b>. En choisir une repart de cet état complet : rien ne reste de la
+          précédente, pas même les coches « déjà faite ».
         </p>
         <div className="row">
-          <input type="text" placeholder="Nom du lot" value={lotName} aria-label="Nom du lot à enregistrer"
+          <input type="text" placeholder="Nom de la liste" value={lotName} aria-label="Nom de la liste à enregistrer"
             onChange={(e) => setLotName(e.target.value)} style={{ flex: 1, minWidth: 160 }} />
           <button className="ghost" onClick={saveLot}>Enregistrer</button>
         </div>
-        {day.lots.map((l) => (
-          <div className="lot" key={l.id}>
-            <div>
-              <b>{l.name}</b>
-              <small>{l.ids.length} attractions · {l.gc.length} jokers · {l.vl.length} VL</small>
+        {day.lots.map((l) => {
+          // Liste active : déduite de la sélection, jamais stockée. Un drapeau posé à
+          // l'application se serait périmé au premier changement de sélection.
+          const active = l.ids.length === day.sel.length
+            && l.ids.every((id) => day.sel.includes(id))
+            && (l.first ?? null) === day.first;
+          return (
+            <div className={"lot" + (active ? " active" : "")} key={l.id}>
+              <div>
+                <b>{l.name}{active ? " · en cours" : ""}</b>
+                <small>
+                  {l.ids.length} attractions · {l.gc.length} jokers · {l.vl.length} VL
+                  {l.first != null && BY_ID[l.first] ? ` · ouvre sur ${BY_ID[l.first].n}` : ""}
+                  {l.steps?.length ? " · parcours enregistré" : " · sans parcours"}
+                </small>
+              </div>
+              <div className="sp">
+                {active ? (
+                  <button className="ghost" title="Réenregistrer cette liste sur l'état courant"
+                    onClick={() => { setLots(day.lots.map((x) => (x.id === l.id ? updateLot(x, day) : x))); toast(`« ${l.name} » mise à jour`); }}>
+                    Mettre à jour
+                  </button>
+                ) : (
+                  <button className="ghost" aria-pressed={false}
+                    onClick={() => { setDay(applyLot(l, day)); toast(`« ${l.name} » chargée`); }}>
+                    Charger
+                  </button>
+                )}
+                <button className="lk" aria-pressed={l.locked} title={l.locked ? "Déverrouiller" : "Verrouiller"}
+                  onClick={() => setLots(day.lots.map((x) => (x.id === l.id ? { ...x, locked: !x.locked } : x)))}>
+                  <Lock />
+                </button>
+                <BoutonDanger className="lk" title={`Supprimer la liste ${l.name}`}
+                  label="✕" confirmation="Supprimer ?"
+                  onConfirm={() => { setLots(day.lots.filter((x) => x.id !== l.id)); toast(`« ${l.name} » supprimée`); }} />
+              </div>
             </div>
-            <div className="sp">
-              <button className="ghost" onClick={() => { setDay(applyLot(l, day)); toast(`Lot « ${l.name} » appliqué`); }}>
-                Appliquer
-              </button>
-              <button className="lk" aria-pressed={l.locked} title={l.locked ? "Déverrouiller" : "Verrouiller"}
-                onClick={() => setLots(day.lots.map((x) => (x.id === l.id ? { ...x, locked: !x.locked } : x)))}>
-                <Lock />
-              </button>
-              <BoutonDanger className="lk" title={`Supprimer le lot ${l.name}`}
-                label="✕" confirmation="Supprimer ?"
-                onConfirm={() => { setLots(day.lots.filter((x) => x.id !== l.id)); toast(`Lot « ${l.name} » supprimé`); }} />
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </Section>
 
       <div className="card">
