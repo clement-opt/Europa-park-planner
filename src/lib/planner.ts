@@ -307,9 +307,27 @@ export function buildPlan({ day, snap: direct, pace, positions, walk, fromNow, r
     }
 
     if (!best) {
-      if (nausea > 0) {
-        const p = Math.max(10, Math.min(20, Math.ceil((nausea - day.tol * 0.55) / 0.55)));
-        steps.push({ kind: "break", at: t, dur: p, name: "Respiration", detail: "Terrasse, glace, on laisse redescendre", pos: { ...pos } });
+      /**
+       * Une seule respiration, et de la bonne durée.
+       *
+       * La pause était forfaitaire, entre dix et vingt minutes, sans garantie qu'elle
+       * fasse repasser quoi que ce soit sous le plafond : la boucle empilait alors
+       * « Respiration » sur « Respiration », ce qui n'a aucun sens sur le terrain. On
+       * calcule maintenant le temps qu'il faut pour que la plus douce des attractions
+       * restantes redevienne admissible, et on ne réessaie pas deux fois de suite.
+       */
+      const precedent = steps[steps.length - 1];
+      const dejaEnPause = precedent?.kind === "break" && precedent.name === "Respiration";
+      const douce = Math.min(...left.map((r) => r.nau));
+      const besoin = Math.ceil((nausea - (day.tol - douce * 13)) / 0.9);
+      if (nausea > 0 && !dejaEnPause && besoin > 0) {
+        const p = Math.max(5, Math.min(45, besoin));
+        if (t + p >= end) break;
+        steps.push({
+          kind: "break", at: t, dur: p, name: "Respiration",
+          detail: `Compteur de brassage au plafond : ${p} min de terrasse et on repart`,
+          pos: { ...pos }
+        });
         t += p;
         nausea = Math.max(0, nausea - p * 0.9);
         continue;

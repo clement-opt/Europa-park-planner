@@ -71,8 +71,15 @@ la page ferait trois écrans de haut avant le premier bouton utile.
 tolérance au brassage, placement des attractions aquatiques, répartition des sensations
 fortes, rythme de marche.
 
-**Les lots** figent une sélection pour comparer plusieurs parcours. Un lot verrouillé
-empêche de modifier la sélection ; seules les attractions faites se cochent encore.
+**Les listes enregistrées** figent un programme entier : les attractions, les jokers, les
+VirtualLine, l'attraction d'ouverture **et le parcours calculé**. En charger une repart de
+cet état complet et **vide les coches « déjà faite »**, qui appartenaient au programme
+qu'on quitte. Celle dont la sélection est à l'écran est signalée « en cours » et se
+réenregistre d'un bouton. Verrouillée, elle empêche de modifier la sélection ; seules les
+attractions faites se cochent encore.
+
+Depuis le bilan de fin de parcours, ce qui n'est pas entré dans la journée se met de côté
+d'un bouton, sous la forme d'une liste « Reliquat » prête à charger sur l'autre jour.
 
 Le bouton de calcul **suit le défilement**, en bas de l'écran, et rappelle le nombre
 d'attractions retenues.
@@ -185,6 +192,7 @@ npm run preview  # sert dist/ pour tester le service worker
 
 node scripts/check-api.mjs        # croise le référentiel avec l'API réelle
 node scripts/audit-ergonomie.mjs  # contraste, cibles, noms accessibles, focus
+node scripts/audit-scenarios.mjs  # 18 scénarios de terrain, horloge et relevés simulés
 node scripts/cut-wagon.mjs --rails --rotation=-26   # détoure le wagon
 node scripts/make-icons.mjs                        # icônes de la PWA, d'après le wagon
 node scripts/cut-heads.mjs                         # découpe les visages du groupe

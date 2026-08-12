@@ -9,6 +9,44 @@ git le fait déjà. On y écrit ce que git ne dit pas — pourquoi, et où on s'
 
 ---
 
+## Session 22 — 12/08/2026 · Recalculer veut dire maintenant
+
+**Le bouton principal partait de l'heure d'ouverture.** À 11 h dans le parc,
+« Recalculer » rendait un parcours démarrant à 9 h, avec des horaires déjà passés. Il
+part désormais de l'heure réelle dès que la journée est commencée, et le libellé le
+dit : « Recalculer depuis 11:14 ».
+
+**Conséquence en chaîne, et mea culpa.** La règle posée en session 17 — n'accepter un
+nouveau plan que s'il place au moins autant d'attractions qu'avant — comparait deux
+choses qui n'étaient pas comparables : l'ancien plan partait de 9 h, le nouveau de
+l'heure réelle, donc il en plaçait toujours moins et le parcours restait **figé**.
+Retirer ou ajouter une attraction ne changeait plus rien à l'écran. Les deux plans
+partant maintenant de la même heure, une baisse est légitime : on ne retient plus que
+le cas catastrophique, plus une seule attraction placée alors qu'il en reste.
+
+**« Respiration » à répétition.** La pause était forfaitaire, dix à vingt minutes, sans
+garantie de faire repasser quoi que ce soit sous le plafond de brassage : la boucle
+empilait alors les pauses. La durée est maintenant **calculée** pour que la plus douce
+des attractions restantes redevienne admissible, et on ne réessaie pas deux fois de
+suite. La contrainte anti-nausée est inchangée — c'est la raison d'être de l'app —,
+c'est sa mise en scène qui était absurde.
+
+**Le reliquat devient une liste.** Ce qui n'entre pas dans la journée se met de côté
+d'un bouton, depuis le bilan de fin de parcours, déverrouillé et prêt à être chargé sur
+l'autre jour.
+
+**L'heure se relit au réveil de l'app**, plus seulement toutes les vingt secondes : on
+sort le téléphone de sa poche après un tour, l'étape en cours et le bandeau de fin de
+journée doivent être justes tout de suite.
+
+**`scripts/audit-scenarios.mjs`** — dix-huit scénarios de terrain indépendants, horloge
+simulée et relevés pilotés depuis le test. Demandé après trois échanges perdus sur le
+même symptôme. Chacun rejoue une situation vécue : parc fermé, recalcul à 11 h et à
+17 h, attraction imposée fermée ou déjà faite, validation, retrait, ajout, fin de
+journée dépassée, prolongation, listes enregistrées et rechargées, joker sur
+VirtualLine, plafond de brassage, respirations consécutives, reliquat. Un échec n'en
+masque aucun autre.
+
 ## Session 21 — 12/08/2026 · Sept coches de la veille
 
 **Le vrai coupable, lu dans l'état serveur du séjour.** `first` valait bien 5604,

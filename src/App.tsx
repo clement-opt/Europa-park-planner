@@ -5,7 +5,7 @@ import { fetchFootWays, fetchOsmPositions, type LatLng } from "./lib/geo";
 import { useWalk } from "./lib/walkClient";
 import { buildPlan, clockMin, hhmm, toMin, type DayPlan, type Step } from "./lib/planner";
 import { downloadMarkdown, loadJournal, record, clearJournal } from "./lib/journal";
-import { copySelection, exportSelectionFile, load, merge, save, shareable, type AppState } from "./lib/storage";
+import { copySelection, exportSelectionFile, load, merge, newLot, save, shareable, type AppState } from "./lib/storage";
 import { deviceName, fetchFootWays as footWaysFromServer, fetchCourbe, fetchHoraires, pullState, pushState, stampState, type Courbe, type Horaire, type SyncState } from "./lib/sync";
 import Selection from "./components/Selection";
 import Parcours from "./components/Parcours";
@@ -61,7 +61,22 @@ export default function App() {
   useEffect(() => { tabRef.current = tab; }, [tab]);
   useEffect(() => { save(st); relayRef.current = st.relay; }, [st]);
   useEffect(() => { document.documentElement.setAttribute("data-theme", st.theme); }, [st.theme]);
-  useEffect(() => { const t = setInterval(() => setNow(clockMin()), 20000); return () => clearInterval(t); }, []);
+  /**
+   * L'heure se rafraîchit au réveil, pas seulement toutes les vingt secondes. On sort
+   * le téléphone de sa poche après un tour : l'étape en cours, l'heure affichée et le
+   * bandeau de fin de journée doivent être justes tout de suite, pas au prochain tic.
+   */
+  useEffect(() => {
+    const relire = () => setNow(clockMin());
+    const t = setInterval(relire, 20000);
+    document.addEventListener("visibilitychange", relire);
+    window.addEventListener("focus", relire);
+    return () => {
+      clearInterval(t);
+      document.removeEventListener("visibilitychange", relire);
+      window.removeEventListener("focus", relire);
+    };
+  }, []);
   useEffect(() => { if (!toastMsg) return; const t = setTimeout(() => setToast(""), 2600); return () => clearTimeout(t); }, [toastMsg]);
 
   /* ---- temps d'attente ---- */
@@ -247,6 +262,20 @@ export default function App() {
   }, []);
 
   /**
+   * La journée est-elle commencée ? C'est ce qui décide de l'heure de départ d'un
+   * calcul, et rien d'autre ne devrait en décider.
+   *
+   * Le bouton principal partait toujours de l'heure d'ouverture. À 11 h dans le parc,
+   * « Recalculer » rendait donc un parcours qui démarrait à 9 h, avec des horaires
+   * déjà passés — et comme toute action suivante replanifiait, elle, depuis l'heure
+   * réelle, les deux ne parlaient pas de la même journée.
+   */
+  const journeeCommencee = useCallback(
+    () => clockMin() > toMin(day.start) && clockMin() < toMin(day.end),
+    [day.start, day.end]
+  );
+
+  /**
    * Le calcul prend quelques millisecondes : sans marquage visible, on ne sait pas
    * si l'app a travaillé. On affiche l'état le temps d'une respiration.
    */
@@ -265,7 +294,8 @@ export default function App() {
       setPlanning(false);
       remonter();
       const n = steps.filter((x) => x.kind === "ride").length;
-      setToast(n ? `Parcours calculé · ${n} attraction${n > 1 ? "s" : ""}`
+      const depart = fromNow ? hhmm(Math.max(toMin(day.start), clockMin())) : day.start;
+      setToast(n ? `Parcours calculé depuis ${depart} · ${n} attraction${n > 1 ? "s" : ""}`
                  : "Aucune attraction ne rentre dans le temps restant");
     }, 420);
   }, [snap, day, st.pace, positions, walk, setDay, geo.usable, geo.fix, courbe, remonter]);
@@ -281,24 +311,27 @@ export default function App() {
    * fin il ne restait rien du tout. Cocher la première attraction en effaçait donc
    * vingt-six d'un coup, alors qu'elles restaient à faire.
    *
-   * Règle : on n'accepte le nouveau plan que s'il place au moins autant d'attractions
-   * qu'il en restait. C'est le cas courant en cours de journée, et les horaires s'y
-   * rafraîchissent. Sinon on garde l'ordre en place — l'étape cochée sort de
-   * l'affichage, le reste remonte — et le bouton « Mettre à jour » reste là pour
-   * demander explicitement un parcours calé sur le temps qui reste.
+   * Première règle posée : n'accepter le nouveau plan que s'il place au moins autant
+   * d'attractions qu'avant. Elle était trop dure, parce que la comparaison n'était pas
+   * loyale — l'ancien plan partait de 9 h, le nouveau de l'heure réelle, donc il en
+   * plaçait toujours moins et le parcours restait figé. Ajouter ou retirer une
+   * attraction ne changeait alors plus rien à l'écran.
+   *
+   * Le bouton principal partant lui aussi de l'heure réelle, les deux plans sont
+   * désormais comparables et une baisse est légitime : c'est le temps qui manque, pas
+   * un défaut. On ne retient donc que le cas catastrophique — plus une seule
+   * attraction placée alors qu'il en reste à faire — où l'on garde l'ordre en place.
    */
   const replanifier = useCallback((next: DayPlan): Step[] => {
     if (!snap) return next.steps;
     const steps = buildPlan({ day: next, snap, pace: st.pace, positions, walk, fromNow: true, rides: RIDES, me: geo.usable ? geo.fix!.p : null, prof: courbe ?? undefined });
-    // Ce qui resterait à l'écran si l'on ne touchait à rien : ni fait, ni retiré.
-    const garde = next.steps.filter((s) => s.kind !== "ride" || next.sel.includes(s.ride.id));
-    const avant = garde.filter((s) => s.kind === "ride" && !next.done.includes(s.ride.id)).length;
-    const apres = steps.filter((s) => s.kind === "ride").length;
-    if (apres >= avant) return steps;
+    const restantes = next.sel.filter((id) => !next.done.includes(id)).length;
+    if (steps.some((s) => s.kind === "ride") || !restantes) return steps;
     setToast(clockMin() >= toMin(next.end)
       ? `Il est ${hhmm(clockMin())}, après votre fin de journée : parcours gardé en l'état.`
-      : `${avant - apres} attraction${avant - apres > 1 ? "s" : ""} n'entrent plus dans le temps restant : parcours gardé en l'état.`);
-    return garde;
+      : "Plus rien n'entre dans le temps restant : parcours gardé en l'état.");
+    // Ce qui resterait à l'écran si l'on ne touchait à rien : ni fait, ni retiré.
+    return next.steps.filter((s) => s.kind !== "ride" || next.sel.includes(s.ride.id));
   }, [snap, st.pace, positions, walk, geo.usable, geo.fix, courbe]);
 
   /** Recalcul silencieux, après un ajout ou un retrait en cours de route. */
@@ -330,6 +363,27 @@ export default function App() {
     } catch { /* navigateur sans service worker : le rechargement suffit */ }
     location.reload();
   }, []);
+
+  /**
+   * Le reliquat devient une liste. Ce qui n'entre pas dans la journée n'a pas à être
+   * retrouvé attraction par attraction le lendemain : on le met de côté tel quel,
+   * déverrouillé, prêt à être chargé sur l'autre jour ou après une prolongation.
+   */
+  const onReliquat = useCallback((ids: number[]) => {
+    if (!ids.length) return;
+    const nom = `Reliquat du jour ${st.day} · ${hhmm(clockMin())}`;
+    const lot = {
+      ...newLot(nom, day),
+      ids: [...ids],
+      gc: day.gc.filter((id) => ids.includes(id)),
+      vl: day.vl.filter((id) => ids.includes(id)),
+      first: null,
+      steps: [],
+      locked: false
+    };
+    setDay({ lots: [...day.lots, lot] });
+    setToast(`Liste « ${nom} » créée · ${ids.length} attractions`);
+  }, [day, st.day, setDay]);
 
   /** Repousse l'heure de fin, sans avoir à ouvrir les réglages. */
   const prolonger = useCallback((h: number) => {
@@ -474,10 +528,14 @@ export default function App() {
 
       {tab === "sel" && day.sel.length > 0 && (
         <div className="dock">
-          <button className="cta" onClick={() => compute(false)} disabled={planning}>
+          {/*
+            Le départ suit l'heure réelle dès que la journée est commencée : on
+            recalcule pour maintenant, pas pour une matinée déjà passée.
+          */}
+          <button className="cta" onClick={() => compute(journeeCommencee())} disabled={planning}>
             {planning ? "Optimisation en cours…"
-              : day.steps.length ? `Recalculer · ${day.sel.length} attractions`
-              : `Calculer l'itinéraire · ${day.sel.length} attractions`}
+              : `${day.steps.length ? "Recalculer" : "Calculer l'itinéraire"} depuis ${
+                  journeeCommencee() ? hhmm(now) : day.start} · ${day.sel.length} attractions`}
           </button>
         </div>
       )}
@@ -568,7 +626,7 @@ export default function App() {
             active={tab === "go"} planning={planning} onRemove={onRemove} onAdd={onAdd}
             me={geo.usable && geo.fix ? geo.fix.p : null} geoState={geo.state}
             onGeo={geo.toggle} walk={walk} pace={st.pace} legs={legs}
-            journeeFinie={journeeFinie} previsionnel={parcOuvert === false} onProlonger={prolonger} />
+            journeeFinie={journeeFinie} previsionnel={parcOuvert === false} onReliquat={onReliquat} onProlonger={prolonger} />
         </section>
       </div>
 

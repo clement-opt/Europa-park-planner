@@ -31,10 +31,11 @@ type Props = {
   legs: LatLng[][];
   journeeFinie: boolean;
   previsionnel: boolean;
+  onReliquat: (ids: number[]) => void;
   onProlonger: (heures: number) => void;
 };
 
-export default function Parcours({ day, now, positions, waits, onTick, onSelect, compute, graphOk, osmCount, active, planning, onRemove, onAdd, me, geoState, onGeo, walk, pace, legs, journeeFinie, previsionnel, onProlonger }: Props) {
+export default function Parcours({ day, now, positions, waits, onTick, onSelect, compute, graphOk, osmCount, active, planning, onRemove, onAdd, me, geoState, onGeo, walk, pace, legs, journeeFinie, previsionnel, onReliquat, onProlonger }: Props) {
   const [adding, setAdding] = useState(false);
   const [fiche, setFiche] = useState<number | null>(null);
   const done = new Set(day.done);
@@ -274,7 +275,8 @@ export default function Parcours({ day, now, positions, waits, onTick, onSelect,
       {rides.length > 0 && (() => {
         const fin = Math.max(...rides.map((r) => r.end));
         const reste = toMin(day.end) - fin;
-        const nonPlacees = day.sel.filter((id) => !done.has(id) && !rides.some((r) => r.ride.id === id)).length;
+        const restantes = day.sel.filter((id) => !done.has(id) && !rides.some((r) => r.ride.id === id));
+        const nonPlacees = restantes.length;
         return (
           <div className="card bilan">
             <h3>Fin du parcours <em>{hhmm(fin)}</em></h3>
@@ -288,11 +290,22 @@ export default function Parcours({ day, now, positions, waits, onTick, onSelect,
                      parce qu'il n'y a plus rien à faire, pas parce que le temps manque.</>}
                 {reste > 20 && <> Il reste <b>{Math.floor(reste / 60)} h {reste % 60} min</b> avant votre heure de fin.</>}
               </p>
-              {reste > 20 && (
-                <button className="ghost" style={{ marginTop: 10 }} onClick={() => setAdding(true)}>
-                  Ajouter des attractions pour occuper ce temps
-                </button>
-              )}
+              <div className="row" style={{ marginTop: 10, marginBottom: 0 }}>
+                {reste > 20 && (
+                  <button className="ghost" onClick={() => setAdding(true)}>
+                    Ajouter des attractions pour occuper ce temps
+                  </button>
+                )}
+                {/*
+                  Le reliquat ne se perd pas : il devient une liste, qu'on charge le
+                  lendemain ou après avoir prolongé la journée.
+                */}
+                {nonPlacees > 0 && (
+                  <button className="ghost" onClick={() => onReliquat(restantes)}>
+                    Faire une liste avec ces {nonPlacees} attractions
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         );

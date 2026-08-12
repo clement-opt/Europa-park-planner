@@ -195,6 +195,40 @@ for (const s of [{n:"390",w:390,h:844},{n:"430",w:430,h:932},{n:"820",w:820,h:11
 }
 
 /**
+ * Recalcul en cours de journée. Le bouton principal partait de l'heure d'ouverture :
+ * à 11 h il rendait un parcours démarrant à 9 h, avec des horaires déjà passés. Et
+ * comme la comparaison avec le plan précédent n'était pas loyale, retirer une
+ * attraction ne changeait plus rien à l'écran.
+ */
+{
+  const ctx = await B.newContext({ viewport:{width:390,height:844} });
+  const p = await ctx.newPage();
+  const jour = new Date(); jour.setSeconds(0,0);
+  const a = (h,m)=>{ const d=new Date(jour); d.setHours(h,m); return d; };
+  await p.clock.setFixedTime(a(11,0));
+  await p.goto(URL,{waitUntil:"load"}); await p.waitForTimeout(3400);
+  await p.getByRole("button",{name:/^Mix$/}).click(); await p.waitForTimeout(400);
+  await p.locator(".dock .cta, .pane button.cta").first().click(); await p.waitForTimeout(1900);
+
+  const heures = () => p.locator(".stop .hh b").evaluateAll((ns)=>ns.map(n=>n.textContent.trim()));
+  const noms = () => p.locator(".stop .stopcard h4").evaluateAll((ns)=>ns.map(n=>n.textContent.trim()));
+  const h0 = (await heures())[0] ?? "";
+  ok.push(`recalcul à 11 h 00 : première étape à ${h0}`);
+  if (!/^1[1-9]:/.test(h0)) bad.push(`recalcul à 11 h 00 : première étape à ${h0}, antérieure à l'heure réelle`);
+
+  const avantNoms = await noms();
+  const avantHeures = await heures();
+  await p.locator(".stop .act.retirer").first().click(); await p.waitForTimeout(1600);
+  const apresNoms = await noms();
+  const retiree = avantNoms.find((n) => !apresNoms.includes(n));
+  const bouge = JSON.stringify(await heures()) !== JSON.stringify(avantHeures.slice(1));
+  ok.push(`retrait : « ${retiree ?? "?"} » sortie, ${avantNoms.length}→${apresNoms.length} étapes, parcours ${bouge ? "recalculé" : "inchangé"}`);
+  if (!retiree) bad.push("retrait : aucune attraction n'est sortie du parcours");
+  if (!bouge) bad.push("retrait : le parcours n'a pas été recalculé, seule la ligne a disparu");
+  await ctx.close();
+}
+
+/**
  * Listes enregistrées. Une liste emporte sa sélection, son attraction d'ouverture et
  * son parcours ; la charger repart de cet état, sans les coches « déjà faite » du
  * programme qu'on quitte — ce sont elles qui avaient fait disparaître l'attraction
