@@ -209,14 +209,27 @@ export function buildPlan({ day, snap: direct, pace, positions, walk, fromNow, r
     return f;
   };
 
-  // Attraction imposée en ouverture : on la sert avant toute optimisation.
-  const forced = day.first != null && !done.has(day.first) ? BY_ID[day.first] : null;
-  if (forced && left.includes(forced)) {
+  /**
+   * Attraction imposée en ouverture : on la sert avant toute optimisation, et surtout
+   * sans la soumettre à l'état d'ouverture de l'instant.
+   *
+   * Le relevé de 9 h 00 disait Silver Star fermée, celui de 9 h 05 l'annonçait ouverte
+   * avec dix minutes d'attente : un parcours calculé entre les deux perdait la
+   * consigne, et Swiss Bob Run passait en tête sans que rien ne l'explique. Une
+   * attraction qu'on impose est une décision, pas une candidate — le planificateur
+   * n'a pas à l'annuler sur un relevé vieux de trois minutes, d'autant qu'une
+   * ouverture décalée de quelques minutes est la norme au lever du parc.
+   */
+  const forced = day.first != null && !done.has(day.first) && day.sel.includes(day.first)
+    ? BY_ID[day.first] : null;
+  if (forced) {
     const tw = walkFromMatrix(walk, at, forced.id, pace);
     let arrive = t + tw;
     if (vlSet.has(forced.id) && vlWindow[forced.id]) arrive = Math.max(arrive, vlWindow[forced.id]);
-    const w = gc.has(forced.id) ? 7 : vlSet.has(forced.id) && vlWindow[forced.id] ? 10 : Math.max(0, projectedWait(snap, forced, arrive, prof));
-    const full = projectedWait(snap, forced, arrive, prof);
+    // Fermée à l'instant, elle n'a pas d'attente projetée : on prend la référence.
+    const projetee = projectedWait(snap, forced, arrive, prof);
+    const full = projetee >= 0 ? projetee : SNAPSHOT[forced.id] ?? 20;
+    const w = gc.has(forced.id) ? 7 : vlSet.has(forced.id) && vlWindow[forced.id] ? 10 : full;
     steps.push({
       kind: "ride", ride: forced, walk: tw, arrive, wait: w,
       mode: gc.has(forced.id) ? "gc" : vlSet.has(forced.id) && vlWindow[forced.id] ? "vl" : "file",
@@ -227,7 +240,10 @@ export function buildPlan({ day, snap: direct, pace, positions, walk, fromNow, r
     pos = positions(forced);
     at = forced.id;
     zone = forced.z;
-    left.splice(left.indexOf(forced), 1);
+    // Elle peut ne pas figurer parmi les candidates — justement parce qu'elle est
+    // relevée fermée. `indexOf` vaut alors -1, qu'il ne faut pas donner à `splice`.
+    const i = left.indexOf(forced);
+    if (i >= 0) left.splice(i, 1);
   }
 
   let guard = 0;

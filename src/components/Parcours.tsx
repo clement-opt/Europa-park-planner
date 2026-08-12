@@ -191,6 +191,19 @@ export default function Parcours({ day, now, positions, waits, onTick, onSelect,
         </div>
       )}
 
+      {/*
+        Imposée et relevée fermée : on le dit, mais on ne défait pas la consigne. Au
+        lever du parc c'est presque toujours une ouverture décalée de quelques minutes.
+      */}
+      {day.first != null && BY_ID[day.first] && !done.has(day.first)
+        && rides.some((s) => s.ride.id === day.first) && waits[day.first] < 0 && (
+        <div className="warn">
+          <b>{BY_ID[day.first].n} est relevée fermée à l'instant</b>, mais le parcours la garde
+          en ouverture puisque vous l'avez imposée. Au lever du parc, c'est le plus souvent une
+          ouverture décalée de quelques minutes.
+        </div>
+      )}
+
       {previsionnel && (
         <div className="warn">
           <b>Parc fermé en ce moment</b> : ce parcours est prévisionnel. Les attentes viennent

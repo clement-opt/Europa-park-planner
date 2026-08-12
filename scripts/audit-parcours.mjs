@@ -144,6 +144,43 @@ for (const s of [{n:"390",w:390,h:844},{n:"430",w:430,h:932},{n:"820",w:820,h:11
 }
 
 /**
+ * Ouverture décalée : le parc est ouvert, mais l'attraction imposée est encore
+ * relevée fermée. C'est le cas observé sur le terrain — Silver Star fermée à 9 h 00,
+ * ouverte à 9 h 05 — et le parcours calculé entre les deux perdait la consigne.
+ */
+{
+  const bloc = readFileSync("src/data/rides.ts", "utf8").match(/export const SNAPSHOT[\s\S]*?\n};/)[0];
+  const ids = [...bloc.matchAll(/(\d{4,}):\s*\d+/g)].map((m) => Number(m[1]));
+  const SILVER = 5604;
+  const ctx = await B.newContext({ viewport:{width:390,height:844} });
+  const p = await ctx.newPage();
+  await p.route(/rpc\/ep_waits/, (r) => r.fulfill({
+    status: 200, contentType: "application/json",
+    body: JSON.stringify({ at: new Date().toISOString(), vl: {},
+      rides: Object.fromEntries(ids.map((id) => [id,
+        id === SILVER ? { wait: 0, open: false } : { wait: 15, open: true }])) })
+  }));
+  await p.goto(URL,{waitUntil:"load"}); await p.waitForTimeout(3600);
+  await p.getByRole("button",{name:/^Mix$/}).click(); await p.waitForTimeout(400);
+  await p.locator("summary",{hasText:"France"}).first().click(); await p.waitForTimeout(400);
+  const et = p.getByRole("button",{name:"Commencer la journée par Silver Star"});
+  await et.scrollIntoViewIfNeeded(); await et.click(); await p.waitForTimeout(400);
+  await p.locator(".dock .cta, .pane button.cta").first().click(); await p.waitForTimeout(1900);
+  const tete = await p.locator(".nextup h4").textContent().catch(() => "(aucune)");
+  const dit = await p.getByText(/relevée fermée à l'instant/).count();
+  ok.push(`ouverture décalée : tête « ${tete} », mention ${dit ? "affichée" : "absente"}`);
+  if (tete !== "Silver Star") bad.push(`ouverture décalée : « ${tete} » en tête au lieu de Silver Star`);
+  if (!dit) bad.push("ouverture décalée : fermeture de l'attraction imposée non signalée");
+
+  // Et à partir de maintenant : la consigne doit tenir là aussi.
+  await p.locator(".pane .cta").first().click(); await p.waitForTimeout(1900);
+  const tete2 = await p.locator(".nextup h4").textContent().catch(() => "(aucune)");
+  if (tete2 !== "Silver Star") bad.push(`ouverture décalée, recalcul depuis maintenant : « ${tete2} » en tête`);
+  ok.push(`ouverture décalée, recalcul depuis maintenant : tête « ${tete2} »`);
+  await ctx.close();
+}
+
+/**
  * Actions irréversibles : un seul geste effaçait la sélection entière du jour, sans
  * confirmation ni retour arrière. Le premier tap doit armer, le second seul exécuter.
  */

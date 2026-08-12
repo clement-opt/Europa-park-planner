@@ -9,6 +9,33 @@ git le fait déjà. On y écrit ce que git ne dit pas — pourquoi, et où on s'
 
 ---
 
+## Session 20 — 12/08/2026 · Une consigne n'est pas une candidate
+
+**Sur place, à 9 h 03, parc ouvert, Swiss Bob Run en tête malgré l'étoile.** Les
+relevés datent la scène à la minute : à 07 h 00 UTC Silver Star était **fermée** et
+Swiss Bob Run ouverte ; à 07 h 05 Silver Star ouvrait avec dix minutes d'attente. Le
+parcours a été calculé dans cet intervalle de cinq minutes.
+
+La correction de la session 19 ne suffisait pas : elle rendait l'attraction imposée
+candidate **en planification à l'avance**, mais dans le parc — donc à partir de
+maintenant — l'état d'ouverture continuait de commander. Le défaut de fond était de
+traiter `first` comme une candidate soumise aux mêmes filtres que les autres.
+
+Une attraction qu'on impose est une décision. Elle est désormais placée en tête dès
+qu'elle est sélectionnée et non faite, **sans consulter son état d'ouverture** ; à
+défaut d'attente projetée, on prend la référence. Une ouverture décalée de quelques
+minutes au lever du parc ne défait plus la consigne — un bandeau la signale, et c'est
+tout.
+
+**Constaté**
+
+- `left.indexOf(forced)` peut valoir −1, justement quand l'attraction est fermée. Le
+  `splice(-1, 1)` qui en découlait retirait la **dernière** candidate de la liste.
+  C'est le genre de défaut que l'ancienne garde masquait : elle rendait la branche
+  inatteignable dans ce cas précis.
+- Le scénario est maintenant joué dans les deux sens : parcours préparé à l'avance, et
+  recalcul depuis maintenant.
+
 ## Session 19 — 12/08/2026 · L'attraction imposée était écartée en silence
 
 **Signalé du terrain : l'étoile sur Silver Star, et une autre attraction en tête.**
