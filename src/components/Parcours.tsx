@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { BY_ID, RIDES, tagsOf, zoneOf, type Ride } from "../data/rides";
 import { hhmm, toMin, type DayPlan, type Step } from "../lib/planner";
 import { ME_KEY, walkFromMatrix, type LatLng, type WalkMatrix } from "../lib/geo";
@@ -8,6 +8,30 @@ import ParkMap from "./ParkMap";
 import { Check, Chevron, Pass, Star } from "./icons";
 
 type RideStep = Extract<Step, { kind: "ride" }>;
+
+/**
+ * Deux temps, et non un seul.
+ *
+ * Tout se jouait en un ressort unique : la carte disparaissait pendant que la liste se
+ * refermait dessus, et l'œil ne voyait qu'un sursaut. La carte part d'abord — elle
+ * jaillit ou glisse pendant un tiers de seconde — puis la place se referme, décalée
+ * de deux cents millisecondes. Un demi-seconde en tout, le temps de comprendre ce
+ * qu'on vient de faire.
+ */
+const sortie = {
+  opacity: { duration: 0.3 },
+  scale: { duration: 0.3, ease: [0.2, 0.7, 0.3, 1] as const },
+  x: { duration: 0.32, ease: [0.4, 0, 0.2, 1] as const },
+  y: { duration: 0.32, ease: [0.2, 0.7, 0.3, 1] as const },
+  height: { duration: 0.34, delay: 0.2 },
+  marginBottom: { duration: 0.34, delay: 0.2 }
+};
+
+/** Les étapes qui restent remontent d'un ressort plus souple, donc lisible. */
+const rythme = {
+  layout: { type: "spring" as const, stiffness: 190, damping: 28 },
+  default: { type: "spring" as const, stiffness: 300, damping: 30 }
+};
 
 type Props = {
   day: DayPlan;
@@ -43,6 +67,11 @@ export default function Parcours({ day, now, positions, waits, onTick, onSelect,
    * depuis l'étape elle-même, puisqu'elle n'est plus rendue. On retient donc le geste.
    */
   const [geste, setGeste] = useState<"fait" | "retire">("fait");
+
+  // `prefers-reduced-motion` : la liste se réordonne sans animation, comme le reste.
+  const reduit = useReducedMotion();
+  const sortieA = reduit ? { duration: 0 } : sortie;
+  const rythmeA = reduit ? { duration: 0 } : rythme;
   const [fiche, setFiche] = useState<number | null>(null);
   const done = new Set(day.done);
 
@@ -83,9 +112,9 @@ export default function Parcours({ day, now, positions, waits, onTick, onSelect,
     }
     heuresPrec.current = suivant;
     if (!change.size) return;
-    setRehausse(change);
-    const t = window.setTimeout(() => setRehausse(new Set()), 1500);
-    return () => window.clearTimeout(t);
+    const debut = window.setTimeout(() => setRehausse(change), 440);
+    const fin = window.setTimeout(() => setRehausse(new Set()), 2100);
+    return () => { window.clearTimeout(debut); window.clearTimeout(fin); };
   }, [day.steps]);
 
   const minFile = rides.reduce((a, s) => a + s.wait, 0);
@@ -384,8 +413,9 @@ export default function Parcours({ day, now, positions, waits, onTick, onSelect,
             return (
               <motion.div layout className="stop" key={s.kind + s.name + s.at}
                 style={{ ["--zh" as string]: 40 }}
-                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, height: 0 }}
-                transition={{ type: "spring", stiffness: 380, damping: 34 }}>
+                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, height: 0, marginBottom: 0, transition: sortieA }}
+                transition={rythmeA}>
                 <div className="hh"><b className="mono">{hhmm(s.at)}</b><u>{s.dur} min</u></div>
                 <div className="track"><span className="node" /></div>
                 <div className="body"><div className="stopcard"><div className="txt">
@@ -403,9 +433,9 @@ export default function Parcours({ day, now, positions, waits, onTick, onSelect,
               style={{ ["--zh" as string]: zoneOf(s.ride.z).hue }}
               initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
               exit={geste === "fait"
-                ? { opacity: 0, scale: 1.08, y: -18, height: 0, marginBottom: 0 }
-                : { opacity: 0, x: -30, height: 0, marginBottom: 0 }}
-              transition={{ type: "spring", stiffness: 380, damping: 34 }}>
+                ? { opacity: 0, scale: 1.1, y: -22, height: 0, marginBottom: 0, transition: sortieA }
+                : { opacity: 0, x: -34, height: 0, marginBottom: 0, transition: sortieA }}
+              transition={rythmeA}>
               <div className="hh">
                 <b className="mono">{hhmm(s.arrive)}</b>
                 <u>{s.walk} min à pied</u>

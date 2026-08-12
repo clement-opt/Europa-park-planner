@@ -34,6 +34,14 @@ retrouvait pas ce qu'on venait de faire. Un bloc « Déjà faites » les liste d
 où elles ont été cochées, avec le joker consommé s'il y en a un, et de quoi défaire un
 appui malheureux.
 
+**L'animation se lisait comme un sursaut** : tout se jouait en un ressort unique, la
+carte disparaissant pendant que la liste se refermait dessus. Deux temps désormais — la
+carte part sur un tiers de seconde, la place se referme deux cents millisecondes plus
+tard, et les étapes suivantes remontent d'un ressort plus souple. Un demi-seconde en
+tout. La coloration des horaires attend que la carte soit partie, sinon les deux effets
+se superposaient et l'œil ne démêlait plus lequel répondait à quoi. `prefers-reduced-motion`
+annule le tout.
+
 **Le retrait d'une étape se voit enfin.** L'animation existait, mais `replan` appelait
 `remonter()` : on retirait une étape au milieu de la liste et l'écran sautait en haut,
 si bien que la disparition et la remontée des suivantes se jouaient hors champ. Le
