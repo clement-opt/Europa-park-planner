@@ -529,6 +529,13 @@ export default function App() {
                   setToast(`Jour ${st.day} réinitialisé`);
                 }} />
             </div>
+            {/*
+              Version affichée : le service worker sert la précédente tant que l'app
+              n'a pas été réellement fermée, et rien à l'écran ne distinguait les deux.
+            */}
+            <p className="note" style={{ marginBottom: 0 }}>
+              Version <b className="mono">{__BUILD__}</b>
+            </p>
           </Section>
         </section>
 

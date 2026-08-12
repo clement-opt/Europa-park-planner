@@ -172,6 +172,16 @@ export default function Parcours({ day, now, positions, waits, onTick, onSelect,
           <div><b className="mono">{minFile}</b><u>min de file</u></div>
           <div><b className="mono">{gagnees}</b><u>min gagnées</u></div>
         </div>
+        {/*
+          L'état de l'étoile ne se lisait que dans la liste des attractions, repliée par
+          pays. Quand elle n'était pas posée, aucun bandeau ne se déclenchait et rien ne
+          distinguait « pas imposée » de « imposée puis ignorée ». On l'écrit toujours.
+        */}
+        <p className="note" style={{ margin: "0 14px 14px" }}>
+          {day.first != null && BY_ID[day.first]
+            ? <>Ouverture imposée : <b>{BY_ID[day.first].n}</b>{done.has(day.first) ? " (déjà faite)" : ""}.</>
+            : <>Aucune attraction imposée en ouverture : le parcours choisit par quoi commencer.</>}
+        </p>
       </div>
 
       {/*

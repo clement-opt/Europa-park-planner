@@ -2,7 +2,21 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
 
+/**
+ * Marqueur de version, affiché dans les réglages.
+ *
+ * Le service worker sert la version précédente tant que l'app n'a pas été
+ * réellement fermée, et sur un téléphone rien ne distingue les deux : on a perdu
+ * des allers-retours à corriger un défaut déjà corrigé, faute de pouvoir dire quelle
+ * version tournait. Vercel expose le commit dans VERCEL_GIT_COMMIT_SHA.
+ */
+const BUILD = [
+  new Date().toISOString().slice(0, 16).replace("T", " "),
+  (process.env.VERCEL_GIT_COMMIT_SHA ?? "local").slice(0, 7)
+].join(" · ");
+
 export default defineConfig({
+  define: { __BUILD__: JSON.stringify(BUILD) },
   build: {
     // Vite 8 s'appuie sur Rolldown : manualChunks doit être une fonction,
     // la forme objet de Rollup n'est plus acceptée.
