@@ -47,6 +47,11 @@ export default function ParkMap(props: {
   legs: LatLng[][];
   /** Le graphe des allées est chargé : le tracé dit vrai. */
   real: boolean;
+  /** Demande de recentrage : on incrémente pour recentrer, même position inchangée. */
+  recentrer?: number;
+  /** Le bouton de la carte allume le GPS quand il est éteint. */
+  onLocaliser?: () => void;
+  geoActif?: boolean;
 }) {
   const box = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
@@ -77,6 +82,18 @@ export default function ParkMap(props: {
     const t = setTimeout(() => m.invalidateSize(), 60);
     return () => clearTimeout(t);
   }, [props.active]);
+
+  /**
+   * Recentrage sur soi. « Me localiser » allumait le GPS et posait un point sur la
+   * carte, mais laissait la vue où elle était : on cherchait son propre point à la
+   * main. Le compteur permet de redemander un recentrage alors que la position, elle,
+   * n'a pas bougé d'un mètre.
+   */
+  useEffect(() => {
+    const m = map.current;
+    if (!m || !props.me || !props.recentrer) return;
+    m.setView([props.me.lat, props.me.lng], Math.max(m.getZoom(), 17), { animate: true });
+  }, [props.recentrer, props.me]);
 
   useEffect(() => {
     const m = map.current;
@@ -172,6 +189,12 @@ export default function ParkMap(props: {
       <div className={"tracehint " + (props.real ? "vrai" : "approx")}>
         {props.real ? "Tracé sur les allées" : "Tracé approximatif"}
       </div>
+      <button className={"mapme" + (props.geoActif ? " on" : "")} onClick={props.onLocaliser}
+        aria-label={props.geoActif ? "Recentrer sur ma position" : "Me localiser dans le parc"}
+        title={props.geoActif ? "Recentrer sur ma position" : "Me localiser dans le parc"}>
+        <span aria-hidden="true">◎</span>
+      </button>
+
       <div className="layers">
         {(["sat", "plan", "dark"] as Layer[]).map((l) => (
           <button key={l} aria-pressed={layer === l} onClick={() => setLayer(l)}>

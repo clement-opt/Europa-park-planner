@@ -9,6 +9,33 @@ git le fait déjà. On y écrit ce que git ne dit pas — pourquoi, et où on s'
 
 ---
 
+## Session 24 — 12/08/2026 · Autour de soi, et se retrouver sur la carte
+
+**« On est à côté du Bob, il n'apparaît pas. »** « Autour de vous » écartait les
+attractions déjà faites et les fermées. On longeait le Swiss Bob Run, il n'était pas
+dans la liste, et le référentiel semblait incomplet. Plus rien n'est caché : les huit
+plus proches à pied s'affichent quel que soit leur état, la faite barrée et en retrait,
+la fermée annoncée telle quelle.
+
+Chaque état a son geste, là où un carreau désactivé ne menait nulle part : ajouter ce
+qui manque, ouvrir la fiche de ce qui est déjà au programme, **remettre à faire** ce
+qui est fait — c'est ainsi qu'on refait une attraction.
+
+**« Me localiser » ne ramenait pas vers soi.** Le bouton allumait le GPS et posait un
+point sur la carte, mais laissait la vue où elle était : on cherchait son propre point
+à la main. Il recentre désormais, et un compteur permet de le redemander alors que la
+position n'a pas bougé d'un mètre. Un bouton de recentrage est posé sur la carte
+elle-même, comme sur n'importe quelle carte ; couper le suivi a son bouton séparé.
+
+**Constaté**
+
+- Le bouton de la carte est resté trois passages d'affilée à 14 × 24 px, sans
+  positionnement : `styles.css` avait été modifié **après** le dernier build. Le test
+  mesurait la bonne chose, c'est le bundle qui était vieux.
+- Deux étapes du parcours contiennent le nom d'une attraction VirtualLine : la sienne,
+  et celle de la réservation qui les cite toutes. Un test qui vise par le texte seul
+  tombe sur la seconde, qui ne porte aucun bouton.
+
 ## Session 23 — 12/08/2026 · Les respirations étaient dans la sauvegarde
 
 **Retirées du code, elles restaient à l'écran.** Le planificateur ne les produisait

@@ -9,6 +9,8 @@ import { Check, Chevron, Pass, Star } from "./icons";
 
 type RideStep = Extract<Step, { kind: "ride" }>;
 
+const waitClass = (w: number) => (w < 0 ? "w-closed" : w < 20 ? "w-go" : w <= 45 ? "w-mid" : "w-stop");
+
 /**
  * Deux temps, et non un seul.
  *
@@ -73,6 +75,18 @@ export default function Parcours({ day, now, positions, waits, onTick, onSelect,
   const sortieA = reduit ? { duration: 0 } : sortie;
   const rythmeA = reduit ? { duration: 0 } : rythme;
   const [fiche, setFiche] = useState<number | null>(null);
+
+  /**
+   * « Me localiser » allumait le GPS mais laissait la carte où elle était : on
+   * cherchait son propre point à la main. Le compteur permet de redemander un
+   * recentrage alors que la position n'a pas bougé d'un mètre, et le même geste
+   * allume le suivi quand il est éteint.
+   */
+  const [recentrage, setRecentrage] = useState(0);
+  const localiser = () => {
+    if (geoState !== "on") onGeo();
+    setRecentrage((n) => n + 1);
+  };
   const done = new Set(day.done);
 
   // L'itinéraire ne montre que ce qui reste : une étape faite disparaît et
@@ -85,13 +99,17 @@ export default function Parcours({ day, now, positions, waits, onTick, onSelect,
   /**
    * Autour de vous : les attractions les plus proches à pied, avec leur attente.
    * C'est la réponse à « on voit un truc en passant, ça vaut le coup ? ».
+   *
+   * Rien n'est écarté. La liste cachait les attractions déjà faites et les fermées :
+   * on passait à côté du Bob, il n'apparaissait pas, et on croyait le référentiel
+   * incomplet. Une attraction qu'on longe doit se lire, quel que soit son état — on
+   * veut savoir qu'on l'a déjà faite, pas qu'elle a disparu.
    */
   const autour = me && walk.m[ME_KEY]
     ? RIDES
-        .filter((r) => !done.has(r.id) && waits[r.id] >= 0)
         .map((r) => ({ r, min: walkFromMatrix(walk, ME_KEY, r.id, pace) }))
         .sort((a, b) => a.min - b.min)
-        .slice(0, 6)
+        .slice(0, 8)
     : [];
 
   /**
@@ -123,7 +141,8 @@ export default function Parcours({ day, now, positions, waits, onTick, onSelect,
   return (
     <>
       <ParkMap waits={waits} positions={positions} selected={new Set(day.sel)} gc={new Set(day.gc)}
-        done={done} steps={day.steps} onPick={setFiche} active={active} me={me} legs={legs} real={graphOk} />
+        done={done} steps={day.steps} onPick={setFiche} active={active} me={me} legs={legs} real={graphOk}
+        recentrer={recentrage} geoActif={geoState === "on"} onLocaliser={localiser} />
 
       {fiche !== null && BY_ID[fiche] && (() => {
         const r = BY_ID[fiche];
@@ -165,9 +184,12 @@ export default function Parcours({ day, now, positions, waits, onTick, onSelect,
       })()}
 
       <div className="row" style={{ marginTop: 12, marginBottom: 0 }}>
-        <button className="ghost" style={{ flex: 1 }} aria-pressed={geoState === "on"} onClick={onGeo}>
-          {geoState === "on" ? "Suivi GPS actif · couper" : "Me localiser dans le parc"}
+        <button className="ghost" style={{ flex: 1 }} onClick={localiser}>
+          {geoState === "on" ? "Recentrer sur ma position" : "Me localiser dans le parc"}
         </button>
+        {geoState === "on" && (
+          <button className="ghost" aria-pressed onClick={onGeo}>Couper le GPS</button>
+        )}
       </div>
 
       <p className="note" style={{ margin: "10px 0 16px" }}>
@@ -193,18 +215,27 @@ export default function Parcours({ day, now, positions, waits, onTick, onSelect,
         <div className="card" style={{ marginTop: 16 }}>
           <h3>Autour de vous <em>à pied</em></h3>
           <div className="autour">
-            {autour.map(({ r, min }) => (
-              <button key={r.id} className="prox" style={{ ["--zh" as string]: zoneOf(r.z).hue }}
-                onClick={() => onAdd(r.id)} disabled={day.sel.includes(r.id)}
-                title={day.sel.includes(r.id) ? "Déjà dans le parcours" : "Ajouter au parcours"}>
-                <b>{r.n}</b>
-                <small>{zoneOf(r.z).flag} {r.z}</small>
-                <span className="mono d">{min} min</span>
-                <span className={"mono w " + (waits[r.id] < 20 ? "w-go" : waits[r.id] <= 45 ? "w-mid" : "w-stop")}>
-                  file {waits[r.id]} min
-                </span>
-              </button>
-            ))}
+            {autour.map(({ r, min }) => {
+              // Chaque état a son geste : ajouter ce qui manque, refaire ce qui est
+              // fait, ouvrir la fiche de ce qui est déjà au programme. Un carreau
+              // désactivé, comme avant pour les attractions retenues, ne menait nulle part.
+              const faite = done.has(r.id);
+              const dedans = day.sel.includes(r.id);
+              const etat = faite ? "faite" : dedans ? "au parcours" : "";
+              return (
+                <button key={r.id} className={"prox" + (faite ? " faite" : "")}
+                  style={{ ["--zh" as string]: zoneOf(r.z).hue }}
+                  onClick={() => (faite ? onTick(r.id) : dedans ? setFiche(r.id) : onAdd(r.id))}
+                  title={faite ? "Remettre à faire" : dedans ? "Voir la fiche" : "Ajouter au parcours"}>
+                  <b>{r.n}</b>
+                  <small>{zoneOf(r.z).flag} {r.z}{etat ? ` · ${etat}` : ""}</small>
+                  <span className="mono d">{min} min</span>
+                  <span className={"mono w " + waitClass(waits[r.id])}>
+                    {waits[r.id] < 0 ? "fermé" : `file ${waits[r.id]} min`}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
       )}

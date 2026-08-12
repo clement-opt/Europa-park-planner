@@ -410,6 +410,57 @@ await scenario("21. Validation : l'écran reste en place et les faites se retrou
   return p;
 });
 
+await scenario("22. Autour de vous : rien n'est caché, et la carte recentre", async (ouvrir, ko) => {
+  const p = await ouvrir({ heure: [10, 0] });
+  // Position au cœur du parc, sinon « Autour de vous » ne s'affiche pas.
+  await p.context().grantPermissions(["geolocation"]);
+  await p.context().setGeolocation({ latitude: 48.2655, longitude: 7.7215 });
+  await planMix(p);
+  // Deux boutons portent ce nom : celui de la carte et celui juste dessous. C'est
+  // voulu — on vise ici celui hors carte.
+  await p.locator(".row .ghost", { hasText: "Me localiser dans le parc" }).click();
+  await p.waitForTimeout(2600);
+
+  const bloc = p.locator(".autour");
+  if (!(await bloc.count())) return ko("panneau « Autour de vous » absent malgré la position"), p;
+
+  /*
+   * On valide une attraction qui est justement dans les parages, sinon le test
+   * dépendrait de la géographie : la première étape du parcours n'est pas forcément
+   * l'une des plus proches du point où l'on se tient.
+   */
+  const proches = await bloc.locator(".prox b").evaluateAll((ns) => ns.map((n) => n.textContent.trim()));
+  const etapes = await p.locator(".stop .stopcard h4").evaluateAll((ns) => ns.map((n) => n.textContent));
+  const cible = proches.find((n) => etapes.some((e) => e.includes(n)));
+  if (!cible) return ko("aucune attraction à la fois proche et au parcours, test non concluant"), p;
+  // L'étape de réservation VirtualLine cite toutes les attractions concernées : viser
+  // par le texte seul tombait dessus, et elle ne porte aucun bouton « Fait ».
+  await p.locator(".stop").filter({ has: p.locator(".act.fait") })
+    .filter({ hasText: cible }).first().locator(".act.fait").click();
+  await p.waitForTimeout(1800);
+
+  const faites = await p.locator(".autour .prox.faite").count();
+  if (!faites) ko(`« ${cible} » validée mais aucune attraction faite dans « Autour de vous »`);
+  const toujours = await bloc.locator(".prox b").evaluateAll((ns) => ns.map((n) => n.textContent.trim()));
+  if (!toujours.includes(cible)) ko(`« ${cible} » a disparu des environs une fois faite`);
+  const carreaux = await p.locator(".autour .prox").count();
+  const morts = await p.locator(".autour .prox[disabled]").count();
+  if (morts) ko(`${morts} carreaux désactivés, sans geste possible`);
+
+  // Le bouton de la carte existe et recentre sans replier quoi que ce soit.
+  if (!(await p.locator(".mapme").count())) ko("bouton de localisation absent de la carte");
+  const avant = await p.evaluate(() => {
+    const m = document.querySelector(".leafmap");
+    return m ? m.getBoundingClientRect().width : 0;
+  });
+  await p.locator(".mapme").click();
+  await p.waitForTimeout(1200);
+  const apres = await p.evaluate(() => document.querySelector(".leafmap")?.getBoundingClientRect().width ?? 0);
+  if (!avant || apres !== avant) ko("la carte a changé de taille au recentrage");
+  console.log(`   (${carreaux} carreaux autour, dont ${faites} déjà faites)`);
+  return p;
+});
+
 await B.close();
 
 const rates = resultats.filter((r) => r.echecs.length);
